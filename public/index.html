@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reparasjons-app</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🔧</span>
+      <div>
+        <h1>Reparasjons-app</h1>
+        <p class="subtitle">Fordel og følg opp reparasjoner</p>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class="tab active" data-view="board">Tavle</button>
+      <button class="tab" data-view="technicians">Teknikere</button>
+    </nav>
+  </header>
+
+  <section class="stats" id="stats"></section>
+
+  <main>
+    <!-- TAVLE -->
+    <div id="view-board" class="view">
+      <div class="toolbar">
+        <button class="btn primary" id="new-repair-btn">+ Ny reparasjon</button>
+        <button class="btn accent" id="distribute-btn">⚡ Fordel automatisk</button>
+      </div>
+      <div class="board" id="board"></div>
+    </div>
+
+    <!-- TEKNIKERE -->
+    <div id="view-technicians" class="view hidden">
+      <div class="toolbar">
+        <button class="btn primary" id="new-tech-btn">+ Ny tekniker</button>
+      </div>
+      <div class="tech-grid" id="tech-grid"></div>
+    </div>
+  </main>
+
+  <!-- Modal for reparasjon -->
+  <dialog id="repair-dialog">
+    <form method="dialog" id="repair-form">
+      <h2 id="repair-dialog-title">Ny reparasjon</h2>
+      <input type="hidden" name="id" />
+      <label>Kundenavn *<input name="customerName" required /></label>
+      <label>Telefon<input name="phone" /></label>
+      <label>Enhet<input name="device" placeholder="f.eks. iPhone 13, 128GB sort" /></label>
+      <label>Kategori
+        <select name="category" id="repair-category"></select>
+      </label>
+      <label>Problem<textarea name="problem" rows="3" placeholder="Beskriv feilen"></textarea></label>
+      <label>Prioritet
+        <select name="priority" id="repair-priority"></select>
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" data-close>Avbryt</button>
+        <button type="submit" class="btn primary">Lagre</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Modal for tekniker -->
+  <dialog id="tech-dialog">
+    <form method="dialog" id="tech-form">
+      <h2 id="tech-dialog-title">Ny tekniker</h2>
+      <input type="hidden" name="id" />
+      <label>Navn *<input name="name" required /></label>
+      <label>Kapasitet (samtidige jobber)<input name="capacity" type="number" min="1" value="5" /></label>
+      <fieldset>
+        <legend>Spesialiteter (tom = generalist)</legend>
+        <div id="specialties-box" class="chips"></div>
+      </fieldset>
+      <label class="checkbox"><input type="checkbox" name="active" checked /> Aktiv</label>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" data-close>Avbryt</button>
+        <button type="submit" class="btn primary">Lagre</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

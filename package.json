@@ -1,0 +1,20 @@
+{
+  "name": "reparasjons-app",
+  "version": "1.0.0",
+  "description": "Fordelingssystem for reparasjonsverksted – registrer, fordel og følg opp reparasjoner",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node src/seed.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "license": "MIT"
+}
