@@ -4,12 +4,23 @@ import express from 'express';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as repo from './src/repository.js';
+import * as auth from './src/auth.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+
+// ---- Innlogging (aktiv kun når APP_PASSWORD er satt) ----
+app.get('/login', (req, res) => {
+  if (auth.isAuthed(req)) return res.redirect('/');
+  res.sendFile(join(__dirname, 'public', 'login.html'));
+});
+app.post('/api/login', auth.login);
+app.post('/api/logout', auth.logout);
+app.use(auth.guard);
+
 app.use(express.static(join(__dirname, 'public')));
 
 // Liten hjelper som fanger feil fra repository og sender riktig statuskode.
@@ -115,4 +126,9 @@ app.get('/api/technicians/:id/calendar.ics', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Reparasjons-app kjører på http://localhost:${PORT}`);
+  if (auth.authEnabled) {
+    console.log('🔒 Passordbeskyttelse er PÅ (APP_PASSWORD er satt).');
+  } else {
+    console.log('⚠️  Ingen passordbeskyttelse. Sett APP_PASSWORD for å kreve innlogging før du legger appen på nett.');
+  }
 });

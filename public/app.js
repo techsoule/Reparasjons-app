@@ -470,7 +470,7 @@ function toast(msg, kind = '') {
 }
 
 // Faner
-document.querySelectorAll('.tab').forEach((tab) =>
+document.querySelectorAll('.tab[data-view]').forEach((tab) =>
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
     tab.classList.add('active');
@@ -478,6 +478,12 @@ document.querySelectorAll('.tab').forEach((tab) =>
     document.getElementById('view-' + tab.dataset.view).classList.remove('hidden');
     if (tab.dataset.view === 'calendar') renderCalendar();
   }));
+
+const logoutBtn = document.getElementById('logout-btn');
+if (logoutBtn) logoutBtn.addEventListener('click', async () => {
+  await fetch('/api/logout', { method: 'POST' });
+  location.href = '/login';
+});
 
 document.getElementById('new-repair-btn').addEventListener('click', () => openRepairDialog());
 document.getElementById('new-tech-btn').addEventListener('click', () => openTechDialog());

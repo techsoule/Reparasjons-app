@@ -38,6 +38,22 @@ npm start          # start appen
 
 > Vil du starte uten eksempeldata? Hopp over `npm run seed` – appen starter da tom.
 
+## Legge appen på nett (produksjon)
+
+Se **[DEPLOY.md](DEPLOY.md)** for en steg-for-steg-guide (Render, Railway eller
+egen server). Kort fortalt:
+
+- Sett miljøvariabelen **`APP_PASSWORD`** for å kreve innlogging (påkrevd når
+  appen ligger på nett – den inneholder kundeopplysninger).
+- Sett **`DATA_DIR`** til en mappe/disk som ikke slettes ved omstart, så data
+  bevares.
+
+| Variabel       | Standard | Beskrivelse                                        |
+|----------------|----------|----------------------------------------------------|
+| `APP_PASSWORD` | *(av)*   | Settes = passord for å slå på innlogging            |
+| `DATA_DIR`     | `./data` | Hvor `db.json` lagres (pek på en varig disk i sky)  |
+| `PORT`         | `3000`   | Port serveren lytter på                            |
+
 ## Bruk
 
 1. Gå til **Teknikere** og legg inn de ansatte med spesialiteter og kapasitet.

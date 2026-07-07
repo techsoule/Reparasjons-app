@@ -1,0 +1,21 @@
+# Utrulling på Render.com – https://render.com
+# Persistent disk gjør at data (data/db.json) overlever omstart og nye versjoner.
+services:
+  - type: web
+    name: reparasjons-app
+    runtime: node
+    plan: starter            # Starter kreves for persistent disk (data som ikke slettes)
+    region: frankfurt        # Nærmest Norge
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /login
+    autoDeploy: true
+    envVars:
+      - key: APP_PASSWORD     # Sett et passord i Render-dashbordet (Environment)
+        sync: false
+      - key: DATA_DIR
+        value: /data
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
