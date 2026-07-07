@@ -17,6 +17,7 @@
     </div>
     <nav class="tabs">
       <button class="tab active" data-view="board">Tavle</button>
+      <button class="tab" data-view="calendar">Kalender</button>
       <button class="tab" data-view="technicians">Teknikere</button>
     </nav>
   </header>
@@ -33,10 +34,26 @@
       <div class="board" id="board"></div>
     </div>
 
+    <!-- KALENDER -->
+    <div id="view-calendar" class="view hidden">
+      <div class="toolbar">
+        <button class="btn ghost" id="cal-prev">←</button>
+        <button class="btn ghost" id="cal-today">I dag</button>
+        <button class="btn ghost" id="cal-next">→</button>
+        <span class="cal-date" id="cal-date"></span>
+      </div>
+      <div class="cal" id="calendar"></div>
+    </div>
+
     <!-- TEKNIKERE -->
     <div id="view-technicians" class="view hidden">
       <div class="toolbar">
         <button class="btn primary" id="new-tech-btn">+ Ny tekniker</button>
+        <div class="notify-box">
+          <label for="me-select">Jeg er:</label>
+          <select id="me-select"></select>
+          <button class="btn ghost" id="notify-btn">🔔 Aktiver varsler</button>
+        </div>
       </div>
       <div class="tech-grid" id="tech-grid"></div>
     </div>
@@ -54,6 +71,10 @@
         <select name="category" id="repair-category"></select>
       </label>
       <label>Problem<textarea name="problem" rows="3" placeholder="Beskriv feilen"></textarea></label>
+      <div class="row2">
+        <label>Pris (kr)<input name="price" type="number" min="0" step="10" value="690" /></label>
+        <label>Varighet (min)<input name="durationMin" type="number" min="15" step="15" value="45" /></label>
+      </div>
       <label>Prioritet
         <select name="priority" id="repair-priority"></select>
       </label>
@@ -71,6 +92,11 @@
       <input type="hidden" name="id" />
       <label>Navn *<input name="name" required /></label>
       <label>Kapasitet (samtidige jobber)<input name="capacity" type="number" min="1" value="5" /></label>
+      <div class="row2">
+        <label>Arbeidstid fra<input name="workStart" type="time" value="09:00" /></label>
+        <label>Arbeidstid til<input name="workEnd" type="time" value="16:00" /></label>
+      </div>
+      <p class="hint">Arbeidstiden kan endres hver mandag. Endringer gjort andre dager trer i kraft førstkommende mandag.</p>
       <fieldset>
         <legend>Spesialiteter (tom = generalist)</legend>
         <div id="specialties-box" class="chips"></div>

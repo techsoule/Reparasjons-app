@@ -6,14 +6,24 @@ etter spesialitet og arbeidsmengde. Følg opp alt på en Kanban-tavle.
 
 ## Funksjoner
 
-- **Reparasjoner** – registrer kunde, enhet, problem, kategori og prioritet (lav → haster)
-- **Teknikere** – navn, spesialiteter (iPhone, Samsung, Laptop …), kapasitet og aktiv/inaktiv
+- **Reparasjoner** – registrer kunde, enhet, problem, kategori, prioritet, pris og varighet
+- **Teknikere** – navn, spesialiteter (iPhone, Samsung, Laptop …), kapasitet og egen arbeidstid
 - **Automatisk fordeling** – ett klikk fordeler alle ufordelte jobber:
   - Reparasjoner med høyest prioritet fordeles først
   - Velger tekniker med riktig spesialitet
-  - Balanserer arbeidsmengden og respekterer kapasitet
+  - **Balanserer inntjeningen** – neste jobb går til den som har tjent minst
+    denne måneden, slik at alle teknikere ender likt over tid
+  - Respekterer kapasitet
+- **Kalender** – hver fordelt jobb planlegges automatisk inn på første ledige
+  tidspunkt i teknikerens eget arbeidsvindu (søndager hoppes over). Egen
+  kalenderfane i appen + `.ics`-abonnement per tekniker for Google/Apple/Outlook
+- **Arbeidstid med mandagsregel** – teknikeren velger sitt tidsrom for dagen;
+  endringer kan gjøres hver mandag (endringer andre dager trer i kraft
+  førstkommende mandag)
+- **Varsler** – teknikeren velger «Jeg er …» og aktiverer varsler; når en jobb
+  tildeles i deres tidsrom dyttes et nettleservarsel i sanntid (SSE)
 - **Kanban-tavle** – dra og slipp kort mellom Mottatt → Tildelt → Under arbeid → Ferdig → Levert
-- **Dashbord** – nøkkeltall og arbeidsmengde per tekniker
+- **Dashbord** – nøkkeltall, arbeidsmengde og månedsinntjening per tekniker
 - **Lokal lagring** – data lagres i `data/db.json` (ingen database å sette opp)
 
 ## Kom i gang
@@ -53,15 +63,24 @@ Tester dekker kjernelogikken for fordeling (spesialitet, kapasitet, prioritet, b
 ### Mappestruktur
 
 ```
-server.js              HTTP-server og API-ruter
+server.js              HTTP-server, API-ruter, SSE-varsler og ICS-kalenderfeed
 src/
-  distribution.js      Algoritme for å fordele reparasjoner
-  repository.js        Forretningslogikk (teknikere, reparasjoner)
+  distribution.js      Algoritme for å fordele reparasjoner (inntektsbalansert)
+  scheduling.js        Finner ledige tidspunkt i teknikerens arbeidsdag
+  repository.js        Forretningslogikk (teknikere, reparasjoner, kalender)
   store.js             Datalagring i JSON-fil
   seed.js              Eksempeldata
 public/                Frontend (index.html, app.js, styles.css)
 test/                  Tester
 ```
+
+### Om varslene
+
+Varslene bruker Server-Sent Events + nettleserens Notification-API: teknikeren
+åpner appen (også i en bakgrunnsfane), velger seg selv under «Teknikere» og
+trykker «Aktiver varsler». Ekte push til mobil når appen er helt lukket krever
+at appen publiseres på en offentlig HTTPS-adresse (f.eks. Render) — si ifra om
+du vil ha det, så legges Web Push (VAPID) til.
 
 ### Miljøvariabler
 

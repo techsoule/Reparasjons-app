@@ -158,3 +158,63 @@ dialog legend { color: var(--muted); font-size: 12px; padding: 0 6px; }
 .toast.err { border-color: var(--red); }
 
 .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 20px 0; }
+
+/* To felter side om side i modaler */
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hint { color: var(--muted); font-size: 12px; margin: -4px 0 0; }
+
+/* Varsel-oppsett i verktøylinja */
+.notify-box { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+.notify-box label { color: var(--muted); font-size: 13px; }
+.notify-box select {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 8px 10px; font-size: 13px; font-family: inherit;
+}
+.notify-box .btn.on { border-color: var(--green); color: var(--green); }
+
+/* Ekstra info på kort */
+.card .sched { font-size: 12px; color: var(--muted); margin-top: 6px; font-family: monospace; }
+.tech-card .win { color: var(--muted); font-size: 12.5px; margin: 4px 0 0; }
+.tech-card .win b { color: var(--text); font-family: monospace; font-weight: 600; }
+.tech-card .pending { color: var(--accent); font-size: 12px; margin-top: 2px; }
+.tech-card .earn { margin-top: 10px; font-size: 13px; color: var(--muted); }
+.tech-card .earn b { color: var(--green); font-size: 16px; font-family: monospace; }
+.tech-card .ics { display: inline-block; margin-top: 8px; font-size: 12.5px; color: var(--primary); text-decoration: none; }
+.tech-card .ics:hover { text-decoration: underline; }
+
+/* Kalender */
+.cal-date { color: var(--text); font-weight: 600; font-size: 15px; align-self: center; text-transform: capitalize; }
+.cal {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow-x: auto;
+}
+.cal-head, .cal-body { display: grid; grid-template-columns: 64px repeat(var(--cols, 1), minmax(150px, 1fr)); min-width: fit-content; }
+.cal-head { border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--panel); z-index: 2; }
+.cal-tech { padding: 10px 12px; font-weight: 600; font-size: 14px; border-left: 1px solid var(--border); }
+.cal-win { display: block; color: var(--muted); font-size: 11px; font-family: monospace; margin-top: 2px; }
+.cal-axis { display: flex; flex-direction: column; }
+.cal-axis div {
+  height: 56px; font-size: 11px; color: var(--muted); text-align: right;
+  padding-right: 8px; font-family: monospace; flex: none;
+}
+.cal-col {
+  position: relative; border-left: 1px solid var(--border); height: 672px;
+  background: repeating-linear-gradient(to bottom, transparent 0 55px, var(--border) 55px 56px);
+}
+.cal-window {
+  position: absolute; left: 0; right: 0;
+  background: rgba(59, 130, 246, .07);
+  border-top: 1px dashed var(--primary); border-bottom: 1px dashed var(--primary);
+  pointer-events: none;
+}
+.cal-block {
+  position: absolute; left: 4px; right: 4px; overflow: hidden;
+  background: var(--panel-2); border: 1px solid var(--border);
+  border-left: 3px solid var(--primary); border-radius: 6px;
+  padding: 3px 7px; font-size: 11.5px; line-height: 1.35;
+}
+.cal-block b { font-family: monospace; font-size: 10.5px; display: block; color: var(--muted); font-weight: 600; }
+.cal-block span { display: block; color: var(--muted); font-size: 10.5px; font-family: monospace; }
+.cal-block.prio-haster { border-left-color: var(--red); }
+.cal-block.prio-høy { border-left-color: var(--accent); }
+.cal-block.prio-lav { border-left-color: var(--muted); }
