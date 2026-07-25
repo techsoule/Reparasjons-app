@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Fixiphone",
+    "slug": "fixiphone-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "fixiphone",
+    "splash": {
+      "backgroundColor": "#2b7de9",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "no.fixiphone.app"
+    },
+    "android": {
+      "package": "no.fixiphone.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#2b7de9"
+      }
+    },
+    "plugins": ["expo-notifications", "expo-font"],
+    "extra": {
+      "supabaseUrl": "",
+      "supabaseAnonKey": ""
+    }
+  }
+}
