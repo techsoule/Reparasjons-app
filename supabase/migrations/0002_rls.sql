@@ -137,8 +137,12 @@ returns trigger
 language plpgsql security definer set search_path = public
 as $$
 begin
-  -- Admin og service_role (edge function) har fri tilgang
-  if is_admin() or auth.uid() is null then
+  -- Admin, service_role (edge function) og godkjent omfordeling (RPC
+  -- omfordel_jobb har allerede gjort tilgangssjekken) har fri tilgang
+  if is_admin()
+     or auth.uid() is null
+     or current_setting('app.omfordeling', true) = '1'
+  then
     return new;
   end if;
 

@@ -1,0 +1,338 @@
+<!-- =====================================================================
+     Fixiphone bookingskjema — poster til Supabase Edge Function.
+     Selvstendig: inline CSS + JS. Lim inn i et HTML-element i Elementor.
+     Bytt ut de to verdiene i CONFIG under før publisering.
+     ===================================================================== -->
+
+<div id="fix-booking">
+  <!-- Google Fonts: Poppins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    #fix-booking {
+      --bla: #2b7de9;
+      --tekst: #1a1a1a;
+      --grå: #666;
+      --kant: #d9d9d9;
+      --feil: #c0271e;
+      font-family: 'Poppins', Arial, sans-serif;
+      color: var(--tekst);
+      background: #fff;
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    #fix-booking * { box-sizing: border-box; }
+    #fix-booking h2 { margin: 0 0 4px; font-weight: 600; font-size: 22px; }
+    #fix-booking p.ingress { margin: 0 0 20px; color: var(--grå); font-size: 14px; }
+    #fix-booking label {
+      display: block;
+      font-weight: 500;
+      font-size: 14px;
+      margin: 14px 0 6px;
+    }
+    #fix-booking input[type='text'],
+    #fix-booking input[type='email'],
+    #fix-booking input[type='tel'],
+    #fix-booking input[type='datetime-local'],
+    #fix-booking select,
+    #fix-booking textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--kant);
+      border-radius: 0;          /* skarpe hjørner */
+      font-family: inherit;
+      font-size: 15px;
+      color: var(--tekst);
+      background: #fff;
+    }
+    #fix-booking input:focus,
+    #fix-booking select:focus,
+    #fix-booking textarea:focus {
+      outline: none;
+      border-color: var(--bla);
+    }
+    #fix-booking textarea { min-height: 84px; resize: vertical; }
+    #fix-booking .feiltyper {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 14px;
+      margin-top: 6px;
+    }
+    #fix-booking .feiltyper label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      font-weight: 400;
+      cursor: pointer;
+    }
+    #fix-booking .feiltyper input { width: auto; }
+    #fix-booking .honeypot {
+      position: absolute;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+    }
+    #fix-booking button {
+      width: 100%;
+      margin-top: 22px;
+      padding: 14px;
+      background: var(--bla);
+      color: #fff;
+      border: none;
+      border-radius: 0;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #fix-booking button:disabled { opacity: 0.6; cursor: default; }
+    #fix-booking .feilboks {
+      background: #fdecea;
+      border-left: 3px solid var(--feil);
+      color: var(--feil);
+      padding: 12px;
+      margin-top: 16px;
+      font-size: 14px;
+      display: none;
+    }
+    #fix-booking .feilboks ul { margin: 6px 0 0; padding-left: 18px; }
+    #fix-booking .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.5);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: fixspin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes fixspin { to { transform: rotate(360deg); } }
+    #fix-booking .kvittering { text-align: center; padding: 24px 8px; display: none; }
+    #fix-booking .kvittering .hake {
+      width: 64px; height: 64px; margin: 0 auto 12px;
+      background: var(--bla); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 34px;
+    }
+    #fix-booking .kvittering .ordrenr {
+      font-size: 26px; font-weight: 700; color: var(--bla); margin: 8px 0;
+      letter-spacing: 1px;
+    }
+    #fix-booking .paakrevd { color: var(--feil); }
+  </style>
+
+  <!-- SKJEMA -->
+  <form id="fix-form" novalidate>
+    <h2>Bestill reparasjon</h2>
+    <p class="ingress">
+      Fyll ut skjemaet, så tar vi kontakt for å bekrefte tidspunkt.
+    </p>
+
+    <label for="fix-navn">Navn <span class="paakrevd">*</span></label>
+    <input type="text" id="fix-navn" name="navn" autocomplete="name" required />
+
+    <label for="fix-telefon">Telefon <span class="paakrevd">*</span></label>
+    <input type="tel" id="fix-telefon" name="telefon" autocomplete="tel" required />
+
+    <label for="fix-epost">E-post <span class="paakrevd">*</span></label>
+    <input type="email" id="fix-epost" name="epost" autocomplete="email" required />
+
+    <label for="fix-modell">Modell <span class="paakrevd">*</span></label>
+    <select id="fix-modell" name="modell" required>
+      <option value="">Velg modell …</option>
+      <option>iPhone 15 Pro Max</option>
+      <option>iPhone 15 Pro</option>
+      <option>iPhone 15 Plus</option>
+      <option>iPhone 15</option>
+      <option>iPhone 14 Pro Max</option>
+      <option>iPhone 14 Pro</option>
+      <option>iPhone 14 Plus</option>
+      <option>iPhone 14</option>
+      <option>iPhone 13 Pro Max</option>
+      <option>iPhone 13 Pro</option>
+      <option>iPhone 13</option>
+      <option>iPhone 13 mini</option>
+      <option>iPhone 12 Pro Max</option>
+      <option>iPhone 12 Pro</option>
+      <option>iPhone 12</option>
+      <option>iPhone 12 mini</option>
+      <option>iPhone 11 Pro Max</option>
+      <option>iPhone 11 Pro</option>
+      <option>iPhone 11</option>
+      <option>iPhone SE (2022)</option>
+      <option>iPhone SE (2020)</option>
+      <option>iPhone XR</option>
+      <option>iPhone XS Max</option>
+      <option>iPhone XS</option>
+      <option>iPhone X</option>
+      <option>iPhone 8 Plus</option>
+      <option>iPhone 8</option>
+      <option>iPhone 7 Plus</option>
+      <option>iPhone 7</option>
+    </select>
+
+    <label>Hva gjelder det? <span class="paakrevd">*</span></label>
+    <div class="feiltyper">
+      <label><input type="checkbox" name="feiltype" value="Skjermbytte" /> Skjermbytte</label>
+      <label><input type="checkbox" name="feiltype" value="Batteribytte" /> Batteribytte</label>
+      <label><input type="checkbox" name="feiltype" value="Ladeport" /> Ladeport</label>
+      <label><input type="checkbox" name="feiltype" value="Bakglass" /> Bakglass</label>
+      <label><input type="checkbox" name="feiltype" value="Kamera" /> Kamera</label>
+      <label><input type="checkbox" name="feiltype" value="Høyttaler" /> Høyttaler</label>
+      <label><input type="checkbox" name="feiltype" value="Mikrofon" /> Mikrofon</label>
+      <label><input type="checkbox" name="feiltype" value="Vannskade" /> Vannskade</label>
+      <label><input type="checkbox" name="feiltype" value="Diagnose" /> Diagnose</label>
+    </div>
+
+    <label for="fix-tid">Ønsket tidspunkt <span class="paakrevd">*</span></label>
+    <input type="datetime-local" id="fix-tid" name="onsket_tidspunkt" required />
+
+    <label for="fix-kommentar">Kommentar (valgfritt)</label>
+    <textarea id="fix-kommentar" name="kommentar" placeholder="Beskriv gjerne feilen nærmere"></textarea>
+
+    <!-- Honeypot: skjult felt. Fylles kun ut av bots. -->
+    <div class="honeypot" aria-hidden="true">
+      <label for="fix-firma">Firma</label>
+      <input type="text" id="fix-firma" name="firma" tabindex="-1" autocomplete="off" />
+    </div>
+
+    <div class="feilboks" id="fix-feil"></div>
+
+    <button type="submit" id="fix-submit">Send bestilling</button>
+  </form>
+
+  <!-- KVITTERING -->
+  <div class="kvittering" id="fix-kvittering">
+    <div class="hake">✓</div>
+    <h2>Takk for bestillingen!</h2>
+    <p class="ingress">Vi har mottatt forespørselen din og tar kontakt for å bekrefte tidspunkt.</p>
+    <div class="ordrenr" id="fix-ordrenr"></div>
+    <p class="ingress">Du får også en bekreftelse på e-post.</p>
+  </div>
+
+  <script>
+    (function () {
+      // ============ CONFIG — bytt ut før publisering ============
+      var CONFIG = {
+        // Edge Function URL (fra Supabase → Functions → booking-intake)
+        FUNCTION_URL: 'https://DITT-PROSJEKT.supabase.co/functions/v1/booking-intake',
+        // Supabase anon-nøkkel (offentlig, trygg å eksponere)
+        ANON_KEY: 'DIN_SUPABASE_ANON_KEY',
+      };
+      // ==========================================================
+
+      var form = document.getElementById('fix-form');
+      var feilboks = document.getElementById('fix-feil');
+      var submitBtn = document.getElementById('fix-submit');
+      var kvittering = document.getElementById('fix-kvittering');
+
+      function validerTelefonNo(v) {
+        var s = (v || '').replace(/[\s\-()]/g, '');
+        if (s.indexOf('+47') === 0) s = s.slice(3);
+        else if (s.indexOf('0047') === 0) s = s.slice(4);
+        else if (s.indexOf('47') === 0 && s.length === 10) s = s.slice(2);
+        return /^[2-9]\d{7}$/.test(s);
+      }
+      function validerEpostNo(v) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((v || '').trim());
+      }
+
+      function visFeil(liste) {
+        feilboks.innerHTML =
+          '<strong>Kunne ikke sende:</strong><ul><li>' +
+          liste.join('</li><li>') +
+          '</li></ul>';
+        feilboks.style.display = 'block';
+        feilboks.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      function skjulFeil() { feilboks.style.display = 'none'; }
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        skjulFeil();
+
+        var navn = form.navn.value.trim();
+        var telefon = form.telefon.value.trim();
+        var epost = form.epost.value.trim();
+        var modell = form.modell.value;
+        var tid = form.onsket_tidspunkt.value;
+        var kommentar = form.kommentar.value.trim();
+        var firma = form.firma.value; // honeypot
+        var feiltyper = Array.prototype.slice
+          .call(form.querySelectorAll('input[name="feiltype"]:checked'))
+          .map(function (c) { return c.value; });
+
+        // Klientvalidering (speiler backend)
+        var feil = [];
+        if (!navn) feil.push('Fyll inn navn');
+        if (!telefon) feil.push('Fyll inn telefonnummer');
+        else if (!validerTelefonNo(telefon)) feil.push('Ugyldig norsk telefonnummer');
+        if (!epost) feil.push('Fyll inn e-post');
+        else if (!validerEpostNo(epost)) feil.push('Ugyldig e-postadresse');
+        if (!modell) feil.push('Velg modell');
+        if (feiltyper.length === 0) feil.push('Velg minst én reparasjon');
+        if (!tid) feil.push('Velg ønsket tidspunkt');
+        if (feil.length) { visFeil(feil); return; }
+
+        // Vis lasteindikator
+        submitBtn.disabled = true;
+        var opprinneligTekst = submitBtn.textContent;
+        submitBtn.innerHTML = '<span class="spinner"></span>Sender …';
+
+        fetch(CONFIG.FUNCTION_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: CONFIG.ANON_KEY,
+            Authorization: 'Bearer ' + CONFIG.ANON_KEY,
+          },
+          body: JSON.stringify({
+            navn: navn,
+            telefon: telefon,
+            epost: epost,
+            modell: modell,
+            feiltyper: feiltyper,
+            onsket_tidspunkt: tid,
+            kommentar: kommentar,
+            firma: firma,
+          }),
+        })
+          .then(function (res) {
+            return res.json().then(function (data) {
+              return { status: res.status, data: data };
+            });
+          })
+          .then(function (r) {
+            if (r.status === 200 && r.data && r.data.ok) {
+              form.style.display = 'none';
+              document.getElementById('fix-ordrenr').textContent =
+                r.data.ordrenummer || '';
+              kvittering.style.display = 'block';
+              kvittering.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+              var meldinger =
+                (r.data && r.data.detaljer) ||
+                [(r.data && r.data.feil) || 'Noe gikk galt. Prøv igjen senere.'];
+              visFeil(meldinger);
+              submitBtn.disabled = false;
+              submitBtn.textContent = opprinneligTekst;
+            }
+          })
+          .catch(function () {
+            visFeil(['Nettverksfeil. Sjekk tilkoblingen og prøv igjen.']);
+            submitBtn.disabled = false;
+            submitBtn.textContent = opprinneligTekst;
+          });
+      });
+    })();
+  </script>
+</div>
