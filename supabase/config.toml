@@ -1,0 +1,16 @@
+# Supabase lokal konfigurasjon
+project_id = "fixiphone-app"
+
+[db]
+port = 54322
+major_version = 16
+
+[realtime]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:8081"
+
+[functions.booking-intake]
+verify_jwt = false

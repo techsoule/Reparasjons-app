@@ -1,0 +1,26 @@
+# Node / Expo
+node_modules/
+.expo/
+dist/
+web-build/
+*.log
+npm-debug.*
+yarn-error.*
+
+# Miljøvariabler / hemmeligheter
+.env
+.env.*
+!.env.example
+
+# Supabase
+supabase/.branches
+supabase/.temp
+
+# OS / editor
+.DS_Store
+*.pem
+.idea/
+.vscode/
+
+# Test / dekning
+coverage/
