@@ -1,0 +1,15 @@
+{
+  "name": "fixiphone-app-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Intern reparasjons-app for Fixiphone — delt kode og tester",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}
