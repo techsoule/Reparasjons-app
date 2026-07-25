@@ -130,13 +130,12 @@ export function JobbDetaljScreen({ route }: Props) {
         {jobb.kommentar ? <Rad etikett="Kommentar" verdi={jobb.kommentar} /> : null}
       </Kort>
 
-      <Undertittel>Pris</Undertittel>
+      <Undertittel>Økonomi</Undertittel>
       <Kort>
-        <Rad etikett="Delekost" verdi={kr(jobb.delekost)} />
-        <Rad etikett="Arbeidspris" verdi={kr(jobb.arbeidspris)} />
-        <Rad etikett="Totalpris" verdi={kr(jobb.totalpris)} />
+        <Rad etikett="Delen koster" verdi={kr(jobb.delekost)} />
+        <Rad etikett="Kunden betaler" verdi={kr(jobb.totalpris)} />
+        <Rad etikett="Reparatør tjener" verdi={kr(andel)} />
         <Rad etikett="Estimert tid" verdi={fmtTid(jobb.estimert_tid_min)} />
-        <Rad etikett="Din andel" verdi={kr(andel)} />
       </Kort>
 
       {kanEndre && (

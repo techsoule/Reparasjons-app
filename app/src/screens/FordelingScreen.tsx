@@ -96,6 +96,18 @@ export function FordelingScreen() {
         <Text style={s.nesteNavn}>{nesteNavn ?? 'Ingen tilgjengelig'}</Text>
       </Kort>
 
+      <Undertittel>Fortjeneste per reparatør</Undertittel>
+      {stat.map((t) => (
+        <Soyle
+          key={`k-${t.technician_id}`}
+          navn={t.navn}
+          verdi={t.kroner}
+          maks={maksKr}
+          etikett={kr(t.kroner)}
+          fremhev={t.navn === nesteNavn}
+        />
+      ))}
+
       <Undertittel>Antall jobber</Undertittel>
       {stat.map((t) => (
         <Soyle
@@ -104,7 +116,6 @@ export function FordelingScreen() {
           verdi={t.antall_jobber}
           maks={maksJobber}
           etikett={`${t.antall_jobber}`}
-          fremhev={t.navn === nesteNavn}
         />
       ))}
 
@@ -116,17 +127,6 @@ export function FordelingScreen() {
           verdi={t.minutter}
           maks={maksMin}
           etikett={fmtTid(t.minutter)}
-        />
-      ))}
-
-      <Undertittel>Opptjent (provisjon)</Undertittel>
-      {stat.map((t) => (
-        <Soyle
-          key={`k-${t.technician_id}`}
-          navn={t.navn}
-          verdi={t.kroner}
-          maks={maksKr}
-          etikett={kr(t.kroner)}
         />
       ))}
     </Skjerm>
