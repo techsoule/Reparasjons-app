@@ -129,6 +129,10 @@ export function JobbDetaljScreen({ route, navigation }: Props) {
         <Rad etikett="E-post" verdi={jobb.epost} />
         <Rad etikett="Modell" verdi={jobb.device?.modellnavn ?? '—'} />
         <Rad etikett="Reparasjon" verdi={feiltyper || '—'} />
+        <Rad
+          etikett="Kvalitet"
+          verdi={jobb.kvalitet === 'aftermarket' ? 'Aftermarket' : 'Original / premium'}
+        />
         <Rad etikett="Ønsket tid" verdi={datoTid(jobb.onsket_tidspunkt) || 'Ikke satt'} />
         <Rad
           etikett="Bekreftet tid"

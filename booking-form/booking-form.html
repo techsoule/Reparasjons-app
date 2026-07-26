@@ -73,6 +73,9 @@
       cursor: pointer;
     }
     #fix-booking .feiltyper input { width: auto; }
+    #fix-booking .kvalitet { display: flex; gap: 16px; margin-top: 6px; }
+    #fix-booking .kvalitet label { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 400; cursor: pointer; }
+    #fix-booking .kvalitet input { width: auto; }
     #fix-booking .honeypot {
       position: absolute;
       left: -9999px;
@@ -149,6 +152,16 @@
     <label for="fix-modell">Modell <span class="paakrevd">*</span></label>
     <select id="fix-modell" name="modell" required>
       <option value="">Velg modell …</option>
+      <option>iPhone 17 Pro Max</option>
+      <option>iPhone 17 Pro</option>
+      <option>iPhone 17 Air</option>
+      <option>iPhone 17</option>
+      <option>iPhone 17e</option>
+      <option>iPhone 16 Pro Max</option>
+      <option>iPhone 16 Pro</option>
+      <option>iPhone 16 Plus</option>
+      <option>iPhone 16</option>
+      <option>iPhone 16e</option>
       <option>iPhone 15 Pro Max</option>
       <option>iPhone 15 Pro</option>
       <option>iPhone 15 Plus</option>
@@ -159,38 +172,31 @@
       <option>iPhone 14</option>
       <option>iPhone 13 Pro Max</option>
       <option>iPhone 13 Pro</option>
-      <option>iPhone 13</option>
       <option>iPhone 13 mini</option>
+      <option>iPhone 13</option>
       <option>iPhone 12 Pro Max</option>
       <option>iPhone 12 Pro</option>
-      <option>iPhone 12</option>
       <option>iPhone 12 mini</option>
-      <option>iPhone 11 Pro Max</option>
-      <option>iPhone 11 Pro</option>
-      <option>iPhone 11</option>
-      <option>iPhone SE (2022)</option>
-      <option>iPhone SE (2020)</option>
-      <option>iPhone XR</option>
-      <option>iPhone XS Max</option>
-      <option>iPhone XS</option>
-      <option>iPhone X</option>
-      <option>iPhone 8 Plus</option>
-      <option>iPhone 8</option>
-      <option>iPhone 7 Plus</option>
-      <option>iPhone 7</option>
+      <option>iPhone 12</option>
     </select>
 
     <label>Hva gjelder det? <span class="paakrevd">*</span></label>
     <div class="feiltyper">
       <label><input type="checkbox" name="feiltype" value="Skjermbytte" /> Skjermbytte</label>
       <label><input type="checkbox" name="feiltype" value="Batteribytte" /> Batteribytte</label>
+      <label><input type="checkbox" name="feiltype" value="Bak kamera" /> Bak kamera</label>
+      <label><input type="checkbox" name="feiltype" value="Front kamera" /> Front kamera</label>
       <label><input type="checkbox" name="feiltype" value="Ladeport" /> Ladeport</label>
       <label><input type="checkbox" name="feiltype" value="Bakglass" /> Bakglass</label>
-      <label><input type="checkbox" name="feiltype" value="Kamera" /> Kamera</label>
-      <label><input type="checkbox" name="feiltype" value="Høyttaler" /> Høyttaler</label>
-      <label><input type="checkbox" name="feiltype" value="Mikrofon" /> Mikrofon</label>
-      <label><input type="checkbox" name="feiltype" value="Vannskade" /> Vannskade</label>
-      <label><input type="checkbox" name="feiltype" value="Diagnose" /> Diagnose</label>
+      <label><input type="checkbox" name="feiltype" value="Loud speaker" /> Loud speaker</label>
+      <label><input type="checkbox" name="feiltype" value="Samtalehøytaler" /> Samtalehøytaler</label>
+    </div>
+
+
+    <label>Kvalitet</label>
+    <div class="kvalitet">
+      <label><input type="radio" name="kvalitet" value="original" checked /> Original / premium</label>
+      <label><input type="radio" name="kvalitet" value="aftermarket" /> Aftermarket</label>
     </div>
 
     <label for="fix-tid">Ønsket tidspunkt <span class="paakrevd">*</span></label>
@@ -267,6 +273,7 @@
         var tid = form.onsket_tidspunkt.value;
         var kommentar = form.kommentar.value.trim();
         var firma = form.firma.value; // honeypot
+        var kvalitet = (form.querySelector('input[name="kvalitet"]:checked') || {}).value || 'original';
         var feiltyper = Array.prototype.slice
           .call(form.querySelectorAll('input[name="feiltype"]:checked'))
           .map(function (c) { return c.value; });
@@ -301,6 +308,7 @@
             epost: epost,
             modell: modell,
             feiltyper: feiltyper,
+            kvalitet: kvalitet,
             onsket_tidspunkt: tid,
             kommentar: kommentar,
             firma: firma,

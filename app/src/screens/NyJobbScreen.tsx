@@ -28,6 +28,7 @@ export function NyJobbScreen({ navigation }: Props) {
   const [epost, setEpost] = useState('');
   const [modell, setModell] = useState('');
   const [valgteFeil, setValgteFeil] = useState<string[]>([]);
+  const [kvalitet, setKvalitet] = useState<'original' | 'aftermarket'>('original');
   const [tidspunkt, setTidspunkt] = useState('');
   const [kommentar, setKommentar] = useState('');
   const [sender, setSender] = useState(false);
@@ -57,6 +58,7 @@ export function NyJobbScreen({ navigation }: Props) {
       p_epost: epost,
       p_onsket: tidspunkt,
       p_kommentar: kommentar,
+      p_kvalitet: kvalitet,
     });
     setSender(false);
 
@@ -109,6 +111,26 @@ export function NyJobbScreen({ navigation }: Props) {
               onPress={() => vekslerFeil(rt.navn)}
             >
               <Text style={[s.chipTekst, valgt && s.chipTekstAktiv]}>{rt.navn}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Kvalitet */}
+      <Text style={s.etikett}>Kvalitet</Text>
+      <View style={s.kvalrad}>
+        {([
+          { key: 'original', tittel: 'Original / premium' },
+          { key: 'aftermarket', tittel: 'Aftermarket' },
+        ] as const).map((k) => {
+          const valgt = kvalitet === k.key;
+          return (
+            <TouchableOpacity
+              key={k.key}
+              style={[s.kvalknapp, valgt && s.kvalknappAktiv]}
+              onPress={() => setKvalitet(k.key)}
+            >
+              <Text style={[s.kvalTekst, valgt && s.kvalTekstAktiv]}>{k.tittel}</Text>
             </TouchableOpacity>
           );
         })}
@@ -184,6 +206,11 @@ const s = StyleSheet.create({
   chipAktiv: { backgroundColor: farger.primar, borderColor: farger.primar },
   chipTekst: { fontFamily: skrift.medium, color: farger.tekst, fontSize: tekststr.normal },
   chipTekstAktiv: { color: farger.hvit },
+  kvalrad: { flexDirection: 'row', gap: avstand.s, marginBottom: avstand.s },
+  kvalknapp: { flex: 1, borderWidth: 1, borderColor: farger.kant, paddingVertical: avstand.s, alignItems: 'center' },
+  kvalknappAktiv: { backgroundColor: farger.primar, borderColor: farger.primar },
+  kvalTekst: { fontFamily: skrift.medium, color: farger.tekst, fontSize: tekststr.normal },
+  kvalTekstAktiv: { color: farger.hvit },
   modalBak: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modalKort: { backgroundColor: farger.hvit, maxHeight: '80%', paddingBottom: avstand.xl },
   modalTopp: {

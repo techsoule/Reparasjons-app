@@ -31,6 +31,7 @@ interface BookingBody {
   feiltyper?: string[];
   onsket_tidspunkt?: string;
   kommentar?: string;
+  kvalitet?: string; // 'original' | 'aftermarket'
   firma?: string; // honeypot — skal alltid være tom
 }
 
@@ -154,18 +155,31 @@ Deno.serve(async (req) => {
     }
     const repairTypeIds = (rtRows ?? []).map((r) => r.id);
 
+    // Kvalitet: 'original' (standard) eller 'aftermarket'
+    const kvalitet = body.kvalitet === 'aftermarket' ? 'aftermarket' : 'original';
+
     const { data: prisRows } = await admin
       .from('prices')
-      .select('delekost, arbeidspris, estimert_tid_min, repair_type_id')
+      .select('delekost, arbeidspris, totalpris, estimert_tid_min, repair_type_id, kvalitet')
       .eq('device_id', device.id)
+      .in('kvalitet', [kvalitet, 'original'])
       .in('repair_type_id', repairTypeIds);
+
+    // Per reparasjon: bruk valgt kvalitet hvis den finnes, ellers 'original'
+    const perType = new Map<string, Record<string, unknown>>();
+    for (const p of prisRows ?? []) {
+      const rid = p.repair_type_id as string;
+      if (!perType.has(rid) || p.kvalitet === kvalitet) perType.set(rid, p);
+    }
 
     let delekost = 0;
     let arbeidspris = 0;
+    let totalpris = 0;
     let estimertTid = 0;
-    for (const p of prisRows ?? []) {
+    for (const p of perType.values()) {
       delekost += Number(p.delekost);
       arbeidspris += Number(p.arbeidspris);
+      totalpris += Number(p.totalpris);
       estimertTid += Number(p.estimert_tid_min);
     }
 
@@ -181,8 +195,10 @@ Deno.serve(async (req) => {
         onsket_tidspunkt: onsketISO,
         delekost,
         arbeidspris,
+        totalpris,
         estimert_tid_min: estimertTid,
         status: 'mottatt',
+        kvalitet,
         kommentar: onsketISO ? kommentarInn : joinKommentar(kommentarInn, onsketTekst),
       })
       .select('id, ordrenummer, totalpris')

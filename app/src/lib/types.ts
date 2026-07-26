@@ -40,6 +40,7 @@ export interface Job {
   estimert_tid_min: number;
   technician_id: string | null;
   status: JobStatus;
+  kvalitet: 'original' | 'aftermarket';
   notat: string | null;
   kommentar: string | null;
   opprettet: string;

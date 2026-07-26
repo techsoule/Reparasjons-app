@@ -1149,124 +1149,530 @@ begin
 end;
 $$;
 
--- ==================== seed: modeller, feiltyper, priser ====================
+-- ==================== 0009_priser_kvalitet ====================
 -- =====================================================================
--- Seed — iPhone-modeller, reparasjonstyper, priser og reparatører
+-- Priser fra Fixiphone-prislista:
+--  * To kvalitetsnivåer (original / aftermarket) — kunden velger
+--  * Tre uavhengige tall pga. mva: delekost (innkjøp),
+--    arbeidspris (= «Vi tjener», reparatørens fortjeneste),
+--    totalpris (= «Kunden betaler»). Disse summerer IKKE lenger.
 -- =====================================================================
--- Kjør etter migrasjonene. Idempotent (on conflict do nothing/update).
+
+-- Kvalitetsnivå
+do $$ begin
+  create type pris_kvalitet as enum ('original', 'aftermarket');
+exception when duplicate_object then null; end $$;
 
 -- ---------------------------------------------------------------------
--- DEVICES (iPhone-modeller, nyeste først via sortering)
+-- prices: legg til kvalitet + totalpris, ny primærnøkkel
 -- ---------------------------------------------------------------------
+alter table prices add column if not exists kvalitet pris_kvalitet not null default 'original';
+alter table prices add column if not exists totalpris numeric(10,2) not null default 0;
+
+do $$ begin
+  alter table prices drop constraint prices_pkey;
+exception when undefined_object then null; end $$;
+
+do $$ begin
+  alter table prices add primary key (device_id, repair_type_id, kvalitet);
+exception when invalid_table_definition then null; end $$;
+
+-- ---------------------------------------------------------------------
+-- jobs: hvilken kvalitet ble valgt
+-- ---------------------------------------------------------------------
+alter table jobs add column if not exists kvalitet pris_kvalitet not null default 'original';
+
+-- ---------------------------------------------------------------------
+-- Trigger: IKKE lenger regne totalpris = delekost + arbeidspris.
+-- totalpris settes eksplisitt (kunden betaler fra prislista).
+-- Behold kun fullført-tidsstempel.
+-- ---------------------------------------------------------------------
+create or replace function jobs_beregn_totalpris()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.status = 'hentet' and old.status is distinct from 'hentet' then
+    new.fullfort := now();
+  end if;
+  return new;
+end;
+$$;
+
+-- ---------------------------------------------------------------------
+-- opprett_og_fordel_jobb — med kvalitetsvalg + uavhengig totalpris
+-- ---------------------------------------------------------------------
+create or replace function opprett_og_fordel_jobb(
+  p_kunde_navn text,
+  p_modell     text,
+  p_feiltyper  text[],
+  p_telefon    text default '',
+  p_epost      text default '',
+  p_onsket     text default null,
+  p_kommentar  text default null,
+  p_kvalitet   text default 'original'
+)
+returns table (ordrenummer text, tildelt text)
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_uid        uuid := auth.uid();
+  v_innlegger  text;
+  v_device_id  uuid;
+  v_rt_ids     uuid[];
+  v_kval       pris_kvalitet := coalesce(nullif(p_kvalitet,''),'original')::pris_kvalitet;
+  v_delekost   numeric := 0;
+  v_arbeidspris numeric := 0;
+  v_totalpris  numeric := 0;
+  v_tid        int := 0;
+  v_onsket_ts  timestamptz;
+  v_jobbdato   date;
+  v_kommentar  text := nullif(trim(coalesce(p_kommentar, '')), '');
+  v_valgt      uuid;
+  v_valgt_navn text;
+  v_snapshot   jsonb;
+  v_begrunnelse text;
+  v_ordre      text;
+  v_job_id     uuid;
+begin
+  select navn into v_innlegger from technicians where id = v_uid and aktiv = true;
+  if v_innlegger is null then raise exception 'Kun aktive reparatører kan legge inn jobber'; end if;
+
+  if coalesce(trim(p_kunde_navn), '') = '' then raise exception 'Kundenavn mangler'; end if;
+  if coalesce(trim(p_modell), '') = '' then raise exception 'Modell mangler'; end if;
+  if p_feiltyper is null or array_length(p_feiltyper, 1) is null then
+    raise exception 'Velg minst én feiltype';
+  end if;
+
+  select id into v_device_id from devices where lower(modellnavn) = lower(trim(p_modell));
+  if v_device_id is null then raise exception 'Ukjent modell: %', p_modell; end if;
+
+  select array_agg(id) into v_rt_ids from repair_types where navn = any(p_feiltyper);
+  if v_rt_ids is null or array_length(v_rt_ids, 1) <> array_length(p_feiltyper, 1) then
+    raise exception 'Ukjent feiltype';
+  end if;
+
+  -- Priser ved valgt kvalitet, med fallback til 'original' der aftermarket mangler
+  select coalesce(sum(delekost), 0), coalesce(sum(arbeidspris), 0),
+         coalesce(sum(totalpris), 0), coalesce(sum(estimert_tid_min), 0)
+    into v_delekost, v_arbeidspris, v_totalpris, v_tid
+  from (
+    select distinct on (repair_type_id)
+           delekost, arbeidspris, totalpris, estimert_tid_min
+    from prices
+    where device_id = v_device_id
+      and repair_type_id = any(v_rt_ids)
+      and kvalitet in (v_kval, 'original')
+    order by repair_type_id, (kvalitet = v_kval) desc
+  ) p;
+
+  if p_onsket is not null and trim(p_onsket) <> '' then
+    begin v_onsket_ts := p_onsket::timestamptz;
+    exception when others then
+      v_onsket_ts := null;
+      v_kommentar := nullif(concat_ws(E'\n', v_kommentar, 'Ønsket tid: ' || p_onsket), '');
+    end;
+  end if;
+  v_jobbdato := coalesce(v_onsket_ts::date, current_date);
+
+  with fd as (select * from hent_fordelingsdata(v_jobbdato)),
+  m as (select max(total_kroner) mk, max(total_minutter) mm from fd where utilgjengelig = false)
+  select fd.id, fd.navn into v_valgt, v_valgt_navn
+  from fd, m where fd.utilgjengelig = false
+  order by
+    (case when coalesce(m.mk,0)=0 then 0 else fd.total_kroner/m.mk end)*0.6
+    + (case when coalesce(m.mm,0)=0 then 0 else fd.total_minutter/m.mm end)*0.4 asc,
+    fd.sist_tildelt asc nulls first, fd.id asc
+  limit 1;
+
+  with fd as (select * from hent_fordelingsdata(v_jobbdato)),
+  m as (select max(total_kroner) mk, max(total_minutter) mm from fd where utilgjengelig = false)
+  select jsonb_agg(jsonb_build_object(
+    'technician_id', fd.id, 'navn', fd.navn, 'total_kroner', fd.total_kroner,
+    'total_minutter', fd.total_minutter, 'utilgjengelig', fd.utilgjengelig,
+    'score', (case when coalesce(m.mk,0)=0 then 0 else fd.total_kroner/m.mk end)*0.6
+           + (case when coalesce(m.mm,0)=0 then 0 else fd.total_minutter/m.mm end)*0.4))
+  into v_snapshot from fd, m;
+
+  if v_valgt is not null then
+    v_begrunnelse := 'Tildelt ' || v_valgt_navn || ' (lavest score). Lagt inn manuelt av ' || v_innlegger || '.';
+  else
+    v_begrunnelse := 'Ingen kvalifiserte reparatører – må fordeles manuelt. Lagt inn av ' || v_innlegger || '.';
+  end if;
+
+  insert into jobs (kunde_navn, telefon, epost, device_id, repair_type_ids, onsket_tidspunkt,
+                    delekost, arbeidspris, totalpris, estimert_tid_min, status, kommentar,
+                    kvalitet, technician_id)
+  values (trim(p_kunde_navn), coalesce(p_telefon,''), coalesce(p_epost,''), v_device_id, v_rt_ids,
+          v_onsket_ts, v_delekost, v_arbeidspris, v_totalpris, v_tid, 'mottatt', v_kommentar,
+          v_kval, v_valgt)
+  returning id, jobs.ordrenummer into v_job_id, v_ordre;
+
+  insert into assignment_log (job_id, technician_id, begrunnelse, score_snapshot, er_omfordeling, utfort_av)
+  values (v_job_id, v_valgt, v_begrunnelse, coalesce(v_snapshot,'[]'::jsonb), false, v_uid);
+
+  if v_valgt is not null then
+    insert into earnings (job_id, technician_id, belop, periode)
+    values (v_job_id, v_valgt, round(v_arbeidspris, 2), to_char(now(),'YYYY-MM'));
+
+    insert into notifications (technician_id, type, tittel, melding, job_id)
+    values (v_valgt, 'ny_jobb', 'Ny jobb tildelt',
+            'Ordre ' || v_ordre || ' – ' || trim(p_kunde_navn) || ' (' || trim(p_modell) || ')', v_job_id);
+  end if;
+
+  return query select v_ordre, v_valgt_navn;
+end;
+$$;
+
+
+-- ============================================================
+-- Priser fra Fixiphone-prislista (generert fra Excel-arket)
+-- Forutsetter at migrasjon 0009 er kjørt (kvalitet + totalpris).
+-- ============================================================
+
+-- Rydd gamle priser og reparasjonstyper som ikke er i prislista
+delete from prices;
+delete from repair_types where navn not in
+  ('Skjermbytte','Batteribytte','Bak kamera','Front kamera','Ladeport','Bakglass','Loud speaker','Samtalehøytaler');
+
+-- Modeller fra prislista (nyeste først)
 insert into devices (modellnavn, sortering) values
-  ('iPhone 15 Pro Max', 1),
-  ('iPhone 15 Pro',     2),
-  ('iPhone 15 Plus',    3),
-  ('iPhone 15',         4),
-  ('iPhone 14 Pro Max', 5),
-  ('iPhone 14 Pro',     6),
-  ('iPhone 14 Plus',    7),
-  ('iPhone 14',         8),
-  ('iPhone 13 Pro Max', 9),
-  ('iPhone 13 Pro',     10),
-  ('iPhone 13',         11),
-  ('iPhone 13 mini',    12),
-  ('iPhone 12 Pro Max', 13),
-  ('iPhone 12 Pro',     14),
-  ('iPhone 12',         15),
-  ('iPhone 12 mini',    16),
-  ('iPhone 11 Pro Max', 17),
-  ('iPhone 11 Pro',     18),
-  ('iPhone 11',         19),
-  ('iPhone SE (2022)',  20),
-  ('iPhone SE (2020)',  21),
-  ('iPhone XR',         22),
-  ('iPhone XS Max',     23),
-  ('iPhone XS',         24),
-  ('iPhone X',          25),
-  ('iPhone 8 Plus',     26),
-  ('iPhone 8',          27),
-  ('iPhone 7 Plus',     28),
-  ('iPhone 7',          29)
+  ('iPhone 17 Pro Max', 1),
+  ('iPhone 17 Pro', 2),
+  ('iPhone 17 Air', 3),
+  ('iPhone 17', 4),
+  ('iPhone 17e', 5),
+  ('iPhone 16 Pro Max', 6),
+  ('iPhone 16 Pro', 7),
+  ('iPhone 16 Plus', 8),
+  ('iPhone 16', 9),
+  ('iPhone 16e', 10),
+  ('iPhone 15 Pro Max', 11),
+  ('iPhone 15 Pro', 12),
+  ('iPhone 15 Plus', 13),
+  ('iPhone 15', 14),
+  ('iPhone 14 Pro Max', 15),
+  ('iPhone 14 Pro', 16),
+  ('iPhone 14 Plus', 17),
+  ('iPhone 14', 18),
+  ('iPhone 13 Pro Max', 19),
+  ('iPhone 13 Pro', 20),
+  ('iPhone 13 mini', 21),
+  ('iPhone 13', 22),
+  ('iPhone 12 Pro Max', 23),
+  ('iPhone 12 Pro', 24),
+  ('iPhone 12 mini', 25),
+  ('iPhone 12', 26)
 on conflict (modellnavn) do update set sortering = excluded.sortering;
 
--- ---------------------------------------------------------------------
--- REPAIR_TYPES (feiltyper)
--- ---------------------------------------------------------------------
+-- Reparasjonstyper fra prislista
 insert into repair_types (navn) values
   ('Skjermbytte'),
   ('Batteribytte'),
+  ('Bak kamera'),
+  ('Front kamera'),
   ('Ladeport'),
   ('Bakglass'),
-  ('Kamera'),
-  ('Høyttaler'),
-  ('Mikrofon'),
-  ('Vannskade'),
-  ('Diagnose')
+  ('Loud speaker'),
+  ('Samtalehøytaler')
 on conflict (navn) do nothing;
 
--- ---------------------------------------------------------------------
--- PRICES — genereres for alle kombinasjoner modell × feiltype.
---  Nyere modell (lavere sortering) = høyere delekost.
---  Verdiene er representative, ikke fasit — juster i admin.
--- ---------------------------------------------------------------------
-with base as (
-  select
-    rt.id   as repair_type_id,
-    rt.navn as rt_navn,
-    -- basis delekost, arbeidspris og tid per feiltype
-    case rt.navn
-      when 'Skjermbytte'  then 1400
-      when 'Batteribytte' then 450
-      when 'Ladeport'     then 350
-      when 'Bakglass'     then 700
-      when 'Kamera'       then 600
-      when 'Høyttaler'    then 300
-      when 'Mikrofon'     then 300
-      when 'Vannskade'    then 200
-      when 'Diagnose'     then 0
-    end as base_delekost,
-    case rt.navn
-      when 'Skjermbytte'  then 500
-      when 'Batteribytte' then 400
-      when 'Ladeport'     then 500
-      when 'Bakglass'     then 700
-      when 'Kamera'       then 500
-      when 'Høyttaler'    then 400
-      when 'Mikrofon'     then 400
-      when 'Vannskade'    then 900
-      when 'Diagnose'     then 200
-    end as base_arbeidspris,
-    case rt.navn
-      when 'Skjermbytte'  then 45
-      when 'Batteribytte' then 40
-      when 'Ladeport'     then 50
-      when 'Bakglass'     then 60
-      when 'Kamera'       then 45
-      when 'Høyttaler'    then 40
-      when 'Mikrofon'     then 40
-      when 'Vannskade'    then 120
-      when 'Diagnose'     then 30
-    end as base_tid
-  from repair_types rt
-),
-modell as (
-  select id as device_id, sortering,
-    -- faktor 1.0 for eldste, opp mot ~1.9 for nyeste
-    round((1.0 + greatest(0, (30 - sortering)) * 0.03)::numeric, 2) as faktor
-  from devices
-)
-insert into prices (device_id, repair_type_id, delekost, arbeidspris, estimert_tid_min)
-select
-  m.device_id,
-  b.repair_type_id,
-  round(b.base_delekost * m.faktor / 10.0) * 10,   -- rund til nærmeste tier
-  b.base_arbeidspris,                              -- arbeidspris lik uansett modell
-  b.base_tid
-from modell m
-cross join base b
-on conflict (device_id, repair_type_id) do update
-  set delekost = excluded.delekost,
-      arbeidspris = excluded.arbeidspris,
-      estimert_tid_min = excluded.estimert_tid_min;
-
+-- Priser per modell + reparasjon + kvalitet (innkjøp / vi tjener / kunden betaler)
+insert into prices (device_id, repair_type_id, kvalitet, delekost, arbeidspris, totalpris, estimert_tid_min)
+select d.id, rt.id, v.kvalitet::pris_kvalitet, v.delekost, v.arbeidspris, v.totalpris, v.tid
+from (values
+  ('iPhone 12','Skjermbytte','original',644,606,1450,45),
+  ('iPhone 12','Skjermbytte','aftermarket',281,619,1090,45),
+  ('iPhone 12 mini','Skjermbytte','original',691,559,1450,45),
+  ('iPhone 12 mini','Skjermbytte','aftermarket',481,509,1290,45),
+  ('iPhone 12 Pro','Skjermbytte','original',644,606,1450,45),
+  ('iPhone 12 Pro','Skjermbytte','aftermarket',281,619,1290,45),
+  ('iPhone 12 Pro Max','Skjermbytte','original',1599,391,2290,45),
+  ('iPhone 12 Pro Max','Skjermbytte','aftermarket',446,804,1250,45),
+  ('iPhone 13','Skjermbytte','original',676,574,1450,45),
+  ('iPhone 13','Skjermbytte','aftermarket',446,504,1250,45),
+  ('iPhone 13 mini','Skjermbytte','original',1304,446,1950,45),
+  ('iPhone 13 mini','Skjermbytte','aftermarket',500,690,1390,45),
+  ('iPhone 13 Pro','Skjermbytte','original',1088,412,1700,45),
+  ('iPhone 13 Pro','Skjermbytte','aftermarket',488,502,1290,45),
+  ('iPhone 13 Pro Max','Skjermbytte','original',1300,600,2090,45),
+  ('iPhone 13 Pro Max','Skjermbytte','aftermarket',438,752,1390,45),
+  ('iPhone 14','Skjermbytte','original',754,446,1400,45),
+  ('iPhone 14','Skjermbytte','aftermarket',448,452,1090,45),
+  ('iPhone 14 Plus','Skjermbytte','original',1303,447,1950,45),
+  ('iPhone 14 Plus','Skjermbytte','aftermarket',428,762,1390,45),
+  ('iPhone 14 Pro','Skjermbytte','original',1555,435,2290,45),
+  ('iPhone 14 Pro','Skjermbytte','aftermarket',454,796,1450,45),
+  ('iPhone 14 Pro Max','Skjermbytte','original',2411,489,3090,45),
+  ('iPhone 14 Pro Max','Skjermbytte','aftermarket',513,937,1650,45),
+  ('iPhone 15','Skjermbytte','original',1570,420,2290,45),
+  ('iPhone 15','Skjermbytte','aftermarket',498,692,1390,45),
+  ('iPhone 15 Plus','Skjermbytte','original',1444,456,2200,45),
+  ('iPhone 15 Plus','Skjermbytte','aftermarket',690,560,1450,45),
+  ('iPhone 15 Pro','Skjermbytte','original',2338,412,2950,45),
+  ('iPhone 15 Pro','Skjermbytte','aftermarket',489,961,1650,45),
+  ('iPhone 15 Pro Max','Skjermbytte','original',2541,449,3290,45),
+  ('iPhone 15 Pro Max','Skjermbytte','aftermarket',513,1037,1750,45),
+  ('iPhone 16','Skjermbytte','original',1711,539,2450,45),
+  ('iPhone 16','Skjermbytte','aftermarket',494,696,1390,45),
+  ('iPhone 16 Plus','Skjermbytte','original',1473,517,2290,45),
+  ('iPhone 16 Plus','Skjermbytte','aftermarket',563,627,1390,45),
+  ('iPhone 16 Pro','Skjermbytte','original',2418,482,3090,45),
+  ('iPhone 16 Pro','Skjermbytte','aftermarket',786,964,1950,45),
+  ('iPhone 16 Pro Max','Skjermbytte','original',3004,496,3700,45),
+  ('iPhone 16 Pro Max','Skjermbytte','aftermarket',1040,950,2290,45),
+  ('iPhone 16e','Skjermbytte','original',1169,581,1950,45),
+  ('iPhone 16e','Skjermbytte','aftermarket',446,744,1390,45),
+  ('iPhone 17','Skjermbytte','original',2908,542,3650,45),
+  ('iPhone 17','Skjermbytte','aftermarket',963,787,1950,45),
+  ('iPhone 17 Air','Skjermbytte','original',3588,402,4290,45),
+  ('iPhone 17 Air','Skjermbytte','aftermarket',2336,763,3290,45),
+  ('iPhone 17 Pro','Skjermbytte','original',3259,491,3950,45),
+  ('iPhone 17 Pro','Skjermbytte','aftermarket',1223,767,2290,45),
+  ('iPhone 17 Pro Max','Skjermbytte','original',3704,446,4350,45),
+  ('iPhone 17 Pro Max','Skjermbytte','aftermarket',1641,809,2650,45),
+  ('iPhone 17e','Skjermbytte','original',1169,581,1950,45),
+  ('iPhone 17e','Skjermbytte','aftermarket',446,744,1390,45),
+  ('iPhone 12','Bak kamera','original',1683,807,2690,45),
+  ('iPhone 12','Bak kamera','aftermarket',128,522,850,45),
+  ('iPhone 12 mini','Bak kamera','original',1683,807,2690,45),
+  ('iPhone 12 mini','Bak kamera','aftermarket',303,496,999,45),
+  ('iPhone 12 Pro','Bak kamera','original',1991,659,2850,45),
+  ('iPhone 12 Pro','Bak kamera','aftermarket',697,493,1390,45),
+  ('iPhone 12 Pro Max','Bak kamera','original',1991,659,2850,45),
+  ('iPhone 12 Pro Max','Bak kamera','aftermarket',568,522,1290,45),
+  ('iPhone 13','Bak kamera','original',1683,807,2690,45),
+  ('iPhone 13','Bak kamera','aftermarket',79,811,1090,45),
+  ('iPhone 13 mini','Bak kamera','original',1683,807,2690,45),
+  ('iPhone 13 mini','Bak kamera','aftermarket',79,811,1090,45),
+  ('iPhone 13 Pro','Bak kamera','original',1991,659,2850,45),
+  ('iPhone 13 Pro','Bak kamera','aftermarket',694,496,1390,45),
+  ('iPhone 13 Pro Max','Bak kamera','original',1991,659,2850,45),
+  ('iPhone 13 Pro Max','Bak kamera','aftermarket',694,496,1390,45),
+  ('iPhone 14','Bak kamera','original',1683,807,2690,45),
+  ('iPhone 14','Bak kamera','aftermarket',318,531,1049,45),
+  ('iPhone 14 Plus','Bak kamera','original',1683,807,2690,45),
+  ('iPhone 14 Plus','Bak kamera','aftermarket',454,545,1199,45),
+  ('iPhone 14 Pro','Bak kamera','original',2198,792,3190,45),
+  ('iPhone 14 Pro','Bak kamera','aftermarket',589,601,1390,45),
+  ('iPhone 14 Pro Max','Bak kamera','original',2198,792,3190,45),
+  ('iPhone 14 Pro Max','Bak kamera','aftermarket',481,709,1390,45),
+  ('iPhone 15','Bak kamera','original',1683,807,2690,45),
+  ('iPhone 15','Bak kamera','aftermarket',300,549,1049,45),
+  ('iPhone 15 Plus','Bak kamera','original',1683,807,2690,45),
+  ('iPhone 15 Plus','Bak kamera','aftermarket',298,551,1049,45),
+  ('iPhone 15 Pro','Bak kamera','original',2198,792,3190,45),
+  ('iPhone 15 Pro','Bak kamera','aftermarket',689,601,1490,45),
+  ('iPhone 15 Pro Max','Bak kamera','original',2505,685,3390,45),
+  ('iPhone 15 Pro Max','Bak kamera','aftermarket',589,601,1390,45),
+  ('iPhone 16','Bak kamera','original',1683,807,2690,45),
+  ('iPhone 16','Bak kamera','aftermarket',501,589,1290,45),
+  ('iPhone 16 Plus','Bak kamera','original',1683,807,2690,45),
+  ('iPhone 16 Plus','Bak kamera','aftermarket',635,655,1490,45),
+  ('iPhone 16 Pro','Bak kamera','original',2505,685,3390,45),
+  ('iPhone 16 Pro','Bak kamera','aftermarket',529,661,1390,45),
+  ('iPhone 16 Pro Max','Bak kamera','original',2505,685,3390,45),
+  ('iPhone 16 Pro Max','Bak kamera','aftermarket',528,662,1390,45),
+  ('iPhone 16e','Bak kamera','original',1273,717,2190,45),
+  ('iPhone 16e','Bak kamera','aftermarket',394,605,1199,45),
+  ('iPhone 17','Bak kamera','original',1683,807,2690,45),
+  ('iPhone 17','Bak kamera','aftermarket',808,682,1690,45),
+  ('iPhone 17 Air','Bak kamera','original',1683,807,2690,45),
+  ('iPhone 17 Air','Bak kamera','aftermarket',1103,787,2090,45),
+  ('iPhone 17 Pro','Bak kamera','original',2505,685,3390,45),
+  ('iPhone 17 Pro','Bak kamera','aftermarket',680,710,1590,45),
+  ('iPhone 17 Pro Max','Bak kamera','original',3296,894,4390,45),
+  ('iPhone 17 Pro Max','Bak kamera','aftermarket',680,710,1590,45),
+  ('iPhone 17e','Bak kamera','aftermarket',394,605,1199,45),
+  ('iPhone 12','Front kamera','original',1683,807,2690,45),
+  ('iPhone 12','Front kamera','aftermarket',24,575,799,45),
+  ('iPhone 12 mini','Front kamera','original',1683,807,2690,45),
+  ('iPhone 12 mini','Front kamera','aftermarket',24,575,799,45),
+  ('iPhone 12 Pro','Front kamera','original',1683,807,2690,45),
+  ('iPhone 12 Pro','Front kamera','aftermarket',24,575,799,45),
+  ('iPhone 12 Pro Max','Front kamera','original',1683,807,2690,45),
+  ('iPhone 12 Pro Max','Front kamera','aftermarket',36,563,799,45),
+  ('iPhone 13','Front kamera','original',1991,659,2850,45),
+  ('iPhone 13','Front kamera','aftermarket',31,568,799,45),
+  ('iPhone 13 mini','Front kamera','original',1991,659,2850,45),
+  ('iPhone 13 mini','Front kamera','aftermarket',50,649,899,45),
+  ('iPhone 13 Pro','Front kamera','original',1991,659,2850,45),
+  ('iPhone 13 Pro','Front kamera','aftermarket',34,615,849,45),
+  ('iPhone 13 Pro Max','Front kamera','original',1991,659,2850,45),
+  ('iPhone 13 Pro Max','Front kamera','aftermarket',35,614,849,45),
+  ('iPhone 14','Front kamera','original',1991,659,2850,45),
+  ('iPhone 14','Front kamera','aftermarket',189,610,999,45),
+  ('iPhone 14 Plus','Front kamera','original',1991,659,2850,45),
+  ('iPhone 14 Plus','Front kamera','aftermarket',243,656,1099,45),
+  ('iPhone 14 Pro','Front kamera','original',1991,659,2850,45),
+  ('iPhone 14 Pro','Front kamera','aftermarket',203,696,1099,45),
+  ('iPhone 14 Pro Max','Front kamera','original',1991,659,2850,45),
+  ('iPhone 14 Pro Max','Front kamera','aftermarket',211,688,1099,45),
+  ('iPhone 15','Front kamera','original',1991,659,2850,45),
+  ('iPhone 15','Front kamera','aftermarket',216,683,1099,45),
+  ('iPhone 15 Plus','Front kamera','original',1991,659,2850,45),
+  ('iPhone 15 Plus','Front kamera','aftermarket',264,635,1099,45),
+  ('iPhone 15 Pro','Front kamera','original',1991,659,2850,45),
+  ('iPhone 15 Pro','Front kamera','aftermarket',285,714,1199,45),
+  ('iPhone 15 Pro Max','Front kamera','original',1991,659,2850,45),
+  ('iPhone 15 Pro Max','Front kamera','aftermarket',285,714,1199,45),
+  ('iPhone 16','Front kamera','original',1991,659,2850,45),
+  ('iPhone 16','Front kamera','aftermarket',336,763,1299,45),
+  ('iPhone 16 Plus','Front kamera','original',1991,659,2850,45),
+  ('iPhone 16 Plus','Front kamera','aftermarket',335,764,1299,45),
+  ('iPhone 16 Pro','Front kamera','original',1991,659,2850,45),
+  ('iPhone 16 Pro','Front kamera','aftermarket',909,690,1799,45),
+  ('iPhone 16 Pro Max','Front kamera','original',1991,659,2850,45),
+  ('iPhone 16 Pro Max','Front kamera','aftermarket',706,693,1599,45),
+  ('iPhone 16e','Front kamera','original',1991,659,2850,45),
+  ('iPhone 16e','Front kamera','aftermarket',298,701,1199,45),
+  ('iPhone 17','Front kamera','original',1991,659,2850,45),
+  ('iPhone 17','Front kamera','aftermarket',536,763,1499,45),
+  ('iPhone 17 Air','Front kamera','original',1991,659,2850,45),
+  ('iPhone 17 Air','Front kamera','aftermarket',734,765,1699,45),
+  ('iPhone 17 Pro','Front kamera','original',1991,659,2850,45),
+  ('iPhone 17 Pro','Front kamera','aftermarket',744,755,1699,45),
+  ('iPhone 17 Pro Max','Front kamera','original',1991,659,2850,45),
+  ('iPhone 17 Pro Max','Front kamera','aftermarket',744,755,1699,45),
+  ('iPhone 12','Batteribytte','original',432,667,1299,40),
+  ('iPhone 12','Batteribytte','aftermarket',211,488,899,40),
+  ('iPhone 12 mini','Batteribytte','original',432,667,1299,40),
+  ('iPhone 12 mini','Batteribytte','aftermarket',163,536,899,40),
+  ('iPhone 12 Pro','Batteribytte','original',432,667,1299,40),
+  ('iPhone 12 Pro','Batteribytte','aftermarket',211,488,899,40),
+  ('iPhone 12 Pro Max','Batteribytte','original',432,667,1299,40),
+  ('iPhone 12 Pro Max','Batteribytte','aftermarket',244,555,999,40),
+  ('iPhone 13','Batteribytte','original',432,667,1299,40),
+  ('iPhone 13','Batteribytte','aftermarket',203,496,899,40),
+  ('iPhone 13 mini','Batteribytte','original',432,667,1299,40),
+  ('iPhone 13 mini','Batteribytte','aftermarket',172,527,899,40),
+  ('iPhone 13 Pro','Batteribytte','original',432,667,1299,40),
+  ('iPhone 13 Pro','Batteribytte','aftermarket',287,512,999,40),
+  ('iPhone 13 Pro Max','Batteribytte','original',432,667,1299,40),
+  ('iPhone 13 Pro Max','Batteribytte','aftermarket',312,487,999,40),
+  ('iPhone 14','Batteribytte','original',485,714,1399,40),
+  ('iPhone 14','Batteribytte','aftermarket',183,516,899,40),
+  ('iPhone 14 Plus','Batteribytte','original',485,714,1399,40),
+  ('iPhone 14 Plus','Batteribytte','aftermarket',378,521,1099,40),
+  ('iPhone 14 Pro','Batteribytte','original',485,714,1399,40),
+  ('iPhone 14 Pro','Batteribytte','aftermarket',283,516,999,40),
+  ('iPhone 14 Pro Max','Batteribytte','original',485,714,1399,40),
+  ('iPhone 14 Pro Max','Batteribytte','aftermarket',416,583,1199,40),
+  ('iPhone 15','Batteribytte','original',485,714,1399,40),
+  ('iPhone 15','Batteribytte','aftermarket',207,492,899,40),
+  ('iPhone 15 Plus','Batteribytte','original',485,714,1399,40),
+  ('iPhone 15 Plus','Batteribytte','aftermarket',323,576,1099,40),
+  ('iPhone 15 Pro','Batteribytte','original',485,714,1399,40),
+  ('iPhone 15 Pro','Batteribytte','aftermarket',233,566,999,40),
+  ('iPhone 15 Pro Max','Batteribytte','original',485,714,1399,40),
+  ('iPhone 15 Pro Max','Batteribytte','aftermarket',248,551,999,40),
+  ('iPhone 16','Batteribytte','original',485,714,1399,40),
+  ('iPhone 16','Batteribytte','aftermarket',342,557,1099,40),
+  ('iPhone 16 Plus','Batteribytte','original',485,714,1399,40),
+  ('iPhone 16 Plus','Batteribytte','aftermarket',482,517,1199,40),
+  ('iPhone 16 Pro','Batteribytte','original',591,808,1599,40),
+  ('iPhone 16 Pro','Batteribytte','aftermarket',342,557,1099,40),
+  ('iPhone 16 Pro Max','Batteribytte','original',591,808,1599,40),
+  ('iPhone 16 Pro Max','Batteribytte','aftermarket',520,579,1299,40),
+  ('iPhone 16e','Batteribytte','original',485,714,1399,40),
+  ('iPhone 17','Batteribytte','original',485,714,1399,40),
+  ('iPhone 17 Air','Batteribytte','original',591,808,1599,40),
+  ('iPhone 17 Pro','Batteribytte','original',591,808,1599,40),
+  ('iPhone 17 Pro Max','Batteribytte','original',591,808,1599,40),
+  ('iPhone 12','Ladeport','original',101,699,1000,50),
+  ('iPhone 12 mini','Ladeport','original',94,706,1000,50),
+  ('iPhone 12 Pro','Ladeport','original',101,699,1000,50),
+  ('iPhone 12 Pro Max','Ladeport','original',160,690,1050,50),
+  ('iPhone 13','Ladeport','original',115,735,1050,50),
+  ('iPhone 13 mini','Ladeport','original',130,720,1050,50),
+  ('iPhone 13 Pro','Ladeport','original',169,731,1100,50),
+  ('iPhone 13 Pro Max','Ladeport','original',153,697,1050,50),
+  ('iPhone 14','Ladeport','original',118,732,1050,50),
+  ('iPhone 14 Plus','Ladeport','original',119,731,1050,50),
+  ('iPhone 14 Pro','Ladeport','original',221,729,1150,50),
+  ('iPhone 14 Pro Max','Ladeport','original',264,736,1200,50),
+  ('iPhone 15','Ladeport','original',124,726,1050,50),
+  ('iPhone 15 Plus','Ladeport','original',175,725,1100,50),
+  ('iPhone 15 Pro','Ladeport','original',166,734,1100,50),
+  ('iPhone 15 Pro Max','Ladeport','original',175,725,1100,50),
+  ('iPhone 16','Ladeport','original',211,739,1150,50),
+  ('iPhone 16 Plus','Ladeport','original',198,702,1100,50),
+  ('iPhone 16 Pro','Ladeport','original',174,726,1100,50),
+  ('iPhone 16 Pro Max','Ladeport','original',186,714,1100,50),
+  ('iPhone 17','Ladeport','original',261,739,1200,50),
+  ('iPhone 17 Air','Ladeport','original',324,726,1250,50),
+  ('iPhone 17 Pro','Ladeport','original',286,714,1200,50),
+  ('iPhone 17 Pro Max','Ladeport','original',566,734,1500,50),
+  ('iPhone 12','Loud speaker','original',28,572,800,40),
+  ('iPhone 12 mini','Loud speaker','original',184,516,900,40),
+  ('iPhone 12 Pro','Loud speaker','original',28,572,800,40),
+  ('iPhone 12 Pro Max','Loud speaker','original',90,560,850,40),
+  ('iPhone 13','Loud speaker','original',58,592,850,40),
+  ('iPhone 13 mini','Loud speaker','original',39,611,850,40),
+  ('iPhone 13 Pro','Loud speaker','original',50,650,900,40),
+  ('iPhone 13 Pro Max','Loud speaker','original',46,604,850,40),
+  ('iPhone 14','Loud speaker','original',49,601,850,40),
+  ('iPhone 14 Plus','Loud speaker','original',55,645,900,40),
+  ('iPhone 14 Pro','Loud speaker','original',90,660,950,40),
+  ('iPhone 14 Pro Max','Loud speaker','original',61,689,950,40),
+  ('iPhone 15','Loud speaker','original',75,625,900,40),
+  ('iPhone 15 Plus','Loud speaker','original',65,635,900,40),
+  ('iPhone 15 Pro','Loud speaker','original',54,646,900,40),
+  ('iPhone 15 Pro Max','Loud speaker','original',85,665,950,40),
+  ('iPhone 16','Loud speaker','original',149,601,950,40),
+  ('iPhone 16 Plus','Loud speaker','original',148,552,900,40),
+  ('iPhone 16 Pro','Loud speaker','original',185,615,1000,40),
+  ('iPhone 16 Pro Max','Loud speaker','original',201,599,1000,40),
+  ('iPhone 16e','Loud speaker','original',64,636,900,40),
+  ('iPhone 17','Loud speaker','original',93,607,900,40),
+  ('iPhone 17 Air','Loud speaker','original',139,611,950,40),
+  ('iPhone 17 Pro','Loud speaker','original',139,611,950,40),
+  ('iPhone 17 Pro Max','Loud speaker','original',139,611,950,40),
+  ('iPhone 17e','Loud speaker','original',64,636,900,40),
+  ('iPhone 14','Bakglass','original',265,585,1050,90),
+  ('iPhone 14 Plus','Bakglass','original',260,590,1050,90),
+  ('iPhone 15','Bakglass','original',370,630,1200,90),
+  ('iPhone 15 Plus','Bakglass','original',500,600,1300,90),
+  ('iPhone 15 Pro','Bakglass','original',720,580,1500,90),
+  ('iPhone 15 Pro Max','Bakglass','original',725,575,1500,90),
+  ('iPhone 16','Bakglass','original',495,605,1300,90),
+  ('iPhone 16 Plus','Bakglass','original',633,617,1450,90),
+  ('iPhone 16 Pro','Bakglass','original',800,600,1600,90),
+  ('iPhone 16 Pro Max','Bakglass','original',848,652,1700,90),
+  ('iPhone 16e','Bakglass','original',634,616,1450,90),
+  ('iPhone 17','Bakglass','original',923,677,1800,90),
+  ('iPhone 17 Air','Bakglass','original',2058,742,3000,90),
+  ('iPhone 17 Pro','Bakglass','original',749,601,1550,90),
+  ('iPhone 17 Pro Max','Bakglass','original',803,597,1600,90),
+  ('iPhone 12','Samtalehøytaler','original',28,572,800,40),
+  ('iPhone 12 mini','Samtalehøytaler','original',185,515,900,40),
+  ('iPhone 12 Pro','Samtalehøytaler','original',28,572,800,40),
+  ('iPhone 12 Pro Max','Samtalehøytaler','original',66,634,900,40),
+  ('iPhone 13','Samtalehøytaler','original',65,635,900,40),
+  ('iPhone 13 mini','Samtalehøytaler','original',100,600,900,40),
+  ('iPhone 13 Pro','Samtalehøytaler','original',88,612,900,40),
+  ('iPhone 13 Pro Max','Samtalehøytaler','original',103,597,900,40),
+  ('iPhone 14','Samtalehøytaler','original',75,625,900,40),
+  ('iPhone 14 Plus','Samtalehøytaler','original',75,625,900,40),
+  ('iPhone 14 Pro','Samtalehøytaler','original',38,662,900,40),
+  ('iPhone 14 Pro Max','Samtalehøytaler','original',34,666,900,40),
+  ('iPhone 15','Samtalehøytaler','original',115,635,950,40),
+  ('iPhone 15 Plus','Samtalehøytaler','original',189,611,1000,40),
+  ('iPhone 15 Pro','Samtalehøytaler','original',69,631,900,40),
+  ('iPhone 15 Pro Max','Samtalehøytaler','original',49,651,900,40),
+  ('iPhone 16','Samtalehøytaler','original',144,606,950,40),
+  ('iPhone 16 Plus','Samtalehøytaler','original',190,610,1000,40),
+  ('iPhone 16 Pro','Samtalehøytaler','original',201,599,1000,40),
+  ('iPhone 16 Pro Max','Samtalehøytaler','original',184,616,1000,40),
+  ('iPhone 16e','Samtalehøytaler','original',229,621,1050,40),
+  ('iPhone 17','Samtalehøytaler','original',93,607,900,40),
+  ('iPhone 17 Air','Samtalehøytaler','original',139,611,950,40),
+  ('iPhone 17 Pro','Samtalehøytaler','original',124,626,950,40),
+  ('iPhone 17 Pro Max','Samtalehøytaler','original',119,631,950,40),
+  ('iPhone 17e','Samtalehøytaler','original',229,621,1050,40)
+) as v(modell, typ, kvalitet, delekost, arbeidspris, totalpris, tid)
+join devices d on d.modellnavn = v.modell
+join repair_types rt on rt.navn = v.typ
+on conflict (device_id, repair_type_id, kvalitet) do update
+  set delekost=excluded.delekost, arbeidspris=excluded.arbeidspris,
+      totalpris=excluded.totalpris, estimert_tid_min=excluded.estimert_tid_min;
