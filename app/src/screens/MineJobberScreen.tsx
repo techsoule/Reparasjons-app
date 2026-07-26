@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Skjerm, Tittel, Segment, LasterVisning, TomVisning } from '../components/UI';
 import { JobbKort } from '../components/JobbKort';
@@ -30,9 +31,9 @@ export function MineJobberScreen({ navigation }: Props) {
     setLaster(false);
   }, [tekniker?.id]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     last();
-  }, [last]);
+  }, [last]));
   useRealtime('jobs', last);
 
   const mine = jobber;

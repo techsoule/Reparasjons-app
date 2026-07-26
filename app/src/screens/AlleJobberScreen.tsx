@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { FlatList, RefreshControl, View, Text, StyleSheet } from 'react-native';
 import { melding, velg } from '../lib/dialog';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -56,9 +57,9 @@ export function AlleJobberScreen({ navigation }: Props) {
     setLaster(false);
   }, []);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     last();
-  }, [last]);
+  }, [last]));
   useRealtime('jobs', last);
 
   const filtrert = jobber.filter((j) => {

@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { FlatList, RefreshControl, View, Text, StyleSheet } from 'react-native';
 import { Skjerm, Tittel, Kort, LasterVisning, TomVisning, Knapp } from '../components/UI';
 import { farger, avstand, skrift, tekststr } from '../theme';
@@ -27,9 +28,9 @@ export function VarslerScreen() {
     setLaster(false);
   }, [tekniker]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     last();
-  }, [last]);
+  }, [last]));
   useRealtime('notifications', last);
 
   async function markerLest(id: string) {

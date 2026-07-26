@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { RefreshControl, View, Text, StyleSheet } from 'react-native';
 import {
   Skjerm,
@@ -68,9 +69,9 @@ export function FordelingScreen() {
     setLaster(false);
   }, [periode]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     last();
-  }, [last]);
+  }, [last]));
   useRealtime('jobs', last);
 
   if (laster) return <Skjerm><LasterVisning /></Skjerm>;

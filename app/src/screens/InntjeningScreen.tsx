@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { FlatList, RefreshControl, View, Text, StyleSheet } from 'react-native';
 import { Skjerm, Tittel, Kort, LasterVisning, TomVisning } from '../components/UI';
 import { farger, avstand, skrift, tekststr } from '../theme';
@@ -33,9 +34,9 @@ export function InntjeningScreen() {
     setLaster(false);
   }, [tekniker]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     last();
-  }, [last]);
+  }, [last]));
   useRealtime('earnings', last);
 
   if (laster) return <Skjerm><LasterVisning /></Skjerm>;
