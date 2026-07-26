@@ -35,7 +35,9 @@ language sql stable security definer set search_path = public
 as $$
   select exists (
     select 1 from technicians t
-    where t.id = auth.uid() and t.rolle = 'admin' and t.aktiv = true
+    where t.id = auth.uid()
+      and t.aktiv = true
+      and (t.rolle = 'admin' or t.er_admin = true)
   );
 $$;
 

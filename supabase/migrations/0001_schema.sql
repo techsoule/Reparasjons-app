@@ -54,6 +54,9 @@ create table if not exists technicians (
   provisjon_prosent numeric(5,2) not null default 40.00
                         check (provisjon_prosent >= 0 and provisjon_prosent <= 100),
   rolle             user_rolle  not null default 'reparatør',
+  -- En reparatør kan I TILLEGG ha admin-rettigheter (styre priser/brukere)
+  -- uten å miste sin plass i jobbfordelingen.
+  er_admin          boolean     not null default false,
   aktiv             boolean     not null default true,
   push_token        text,                       -- Expo push token
   opprettet         timestamptz not null default now()

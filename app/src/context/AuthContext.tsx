@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         session,
         tekniker,
         laster,
-        erAdmin: tekniker?.rolle === 'admin',
+        erAdmin: tekniker?.rolle === 'admin' || tekniker?.er_admin === true,
         loggInn,
         loggUt,
         oppdaterTekniker,

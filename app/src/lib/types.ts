@@ -8,6 +8,7 @@ export interface Technician {
   epost: string;
   provisjon_prosent: number;
   rolle: Rolle;
+  er_admin: boolean;
   aktiv: boolean;
   push_token: string | null;
 }
