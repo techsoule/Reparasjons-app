@@ -6,7 +6,9 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "fixiphone",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash.png",
       "backgroundColor": "#2b7de9",
       "resizeMode": "contain"
     },
@@ -18,8 +20,21 @@
     "android": {
       "package": "no.fixiphone.app",
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#2b7de9"
       }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "Fixiphone",
+      "shortName": "Fixiphone",
+      "themeColor": "#2b7de9",
+      "backgroundColor": "#ffffff",
+      "display": "standalone",
+      "lang": "no",
+      "description": "Intern reparasjons-app for Fixiphone"
     },
     "plugins": ["expo-notifications", "expo-font"],
     "extra": {

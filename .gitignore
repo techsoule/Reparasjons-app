@@ -24,3 +24,6 @@ supabase/.temp
 
 # Test / dekning
 coverage/
+
+# Web-bygg (genereres av npm run build:web)
+app/dist/
