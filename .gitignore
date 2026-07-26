@@ -27,3 +27,6 @@ coverage/
 
 # Web-bygg (genereres av npm run build:web)
 app/dist/
+
+# Pakket web-bygg (leveres direkte, ikke i git)
+fixiphone-webapp.zip
