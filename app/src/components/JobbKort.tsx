@@ -3,19 +3,19 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Kort, StatusBadge } from './UI';
 import { farger, avstand, skrift, tekststr } from '../theme';
 import { kr, datoTid } from '@shared/domain/format';
-import { beregnProvisjon } from '@shared/domain/earnings';
+import { fortjeneste } from '@shared/domain/earnings';
 import type { Job } from '../lib/types';
 
 export function JobbKort({
   jobb,
   repairTypeNavn,
-  provisjonProsent,
+  visAndel = false,
   tildeltNavn,
   onPress,
 }: {
   jobb: Job;
   repairTypeNavn: Record<string, string>;
-  provisjonProsent?: number; // for «din andel»
+  visAndel?: boolean; // vis «din andel» (hele arbeidsmarginen)
   tildeltNavn?: string; // vises i Alle jobber
   onPress: () => void;
 }) {
@@ -25,10 +25,7 @@ export function JobbKort({
     .join(', ');
   const modell = jobb.device?.modellnavn ?? 'Ukjent modell';
   const tid = jobb.bekreftet_tidspunkt ?? jobb.onsket_tidspunkt;
-  const andel =
-    provisjonProsent != null
-      ? beregnProvisjon(jobb.arbeidspris, provisjonProsent)
-      : null;
+  const andel = visAndel ? fortjeneste(jobb.arbeidspris) : null;
 
   return (
     <Kort onPress={onPress}>

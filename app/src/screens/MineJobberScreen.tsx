@@ -74,7 +74,7 @@ export function MineJobberScreen({ navigation }: Props) {
             <JobbKort
               jobb={item}
               repairTypeNavn={rtNavn}
-              provisjonProsent={tekniker?.provisjon_prosent}
+              visAndel
               onPress={() => navigation.navigate('JobbDetalj', { jobId: item.id })}
             />
           )}

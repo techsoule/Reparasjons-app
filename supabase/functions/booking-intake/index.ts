@@ -243,8 +243,8 @@ Deno.serve(async (req) => {
         .single();
       tildeltNavn = tech?.navn ?? null;
       pushToken = tech?.push_token ?? null;
-      const belop =
-        Math.round(arbeidspris * Number(tech?.provisjon_prosent ?? 0)) / 100;
+      // Reparatøren beholder hele arbeidsmarginen (arbeidspris)
+      const belop = Math.round(arbeidspris * 100) / 100;
       await admin.from('earnings').insert({
         job_id: job.id,
         technician_id: valgtId,

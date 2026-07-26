@@ -2,12 +2,13 @@
 // Inntjening + aggregeringer for Fordeling-skjermen. Ren, testbar logikk.
 // =====================================================================
 
-/** Provisjon = arbeidspris * provisjon_prosent / 100 (delekost holdes utenfor). */
-export function beregnProvisjon(
-  arbeidspris: number,
-  provisjonProsent: number,
-): number {
-  return Math.round(arbeidspris * provisjonProsent) / 100;
+/**
+ * Reparatørens fortjeneste = hele arbeidsmarginen (det kunden betaler minus
+ * det delen koster). Siden totalpris = delekost + arbeidspris, er marginen
+ * lik arbeidspris. Delekost holdes utenfor.
+ */
+export function fortjeneste(arbeidspris: number): number {
+  return Math.round(Number(arbeidspris ?? 0) * 100) / 100;
 }
 
 export interface JobbForStat {
@@ -21,19 +22,15 @@ export interface TeknikerStat {
   navn: string;
   antall_jobber: number;
   minutter: number;
-  kroner: number; // provisjon
+  kroner: number; // fortjeneste (arbeidsmargin)
 }
 
-/**
- * Aggreger jobber per reparatør for søylevisningen.
- * `provisjon` slås opp per technician_id.
- */
+/** Aggreger jobber per reparatør for søylevisningen. */
 export function aggregerStatistikk(
-  teknikere: { id: string; navn: string; provisjon_prosent: number }[],
+  teknikere: { id: string; navn: string }[],
   jobber: JobbForStat[],
 ): TeknikerStat[] {
   const stat = new Map<string, TeknikerStat>();
-  const prov = new Map<string, number>();
   for (const t of teknikere) {
     stat.set(t.id, {
       technician_id: t.id,
@@ -42,7 +39,6 @@ export function aggregerStatistikk(
       minutter: 0,
       kroner: 0,
     });
-    prov.set(t.id, t.provisjon_prosent);
   }
   for (const j of jobber) {
     if (!j.technician_id) continue;
@@ -50,10 +46,7 @@ export function aggregerStatistikk(
     if (!s) continue;
     s.antall_jobber += 1;
     s.minutter += Number(j.estimert_tid_min ?? 0);
-    s.kroner += beregnProvisjon(
-      Number(j.arbeidspris ?? 0),
-      prov.get(j.technician_id) ?? 0,
-    );
+    s.kroner += fortjeneste(Number(j.arbeidspris ?? 0));
   }
   return teknikere.map((t) => stat.get(t.id)!);
 }

@@ -6,7 +6,7 @@ import {
   STATUS_FLYT,
 } from './status';
 import { kr, tid, erIDag, erKommende } from './format';
-import { beregnProvisjon, aggregerStatistikk, summerInntjening } from './earnings';
+import { fortjeneste, aggregerStatistikk, summerInntjening } from './earnings';
 
 describe('status', () => {
   it('flyten går riktig vei', () => {
@@ -50,15 +50,15 @@ describe('format', () => {
 });
 
 describe('earnings', () => {
-  it('provisjon = arbeidspris * prosent / 100', () => {
-    expect(beregnProvisjon(800, 40)).toBe(320);
-    expect(beregnProvisjon(500, 40)).toBe(200);
+  it('fortjeneste = hele arbeidsmarginen (arbeidspris)', () => {
+    expect(fortjeneste(800)).toBe(800);
+    expect(fortjeneste(500)).toBe(500);
   });
 
-  it('aggregerer statistikk per reparatør', () => {
+  it('aggregerer statistikk per reparatør (fortjeneste = arbeidspris)', () => {
     const teknikere = [
-      { id: 'a', navn: 'Jonas', provisjon_prosent: 40 },
-      { id: 'b', navn: 'Sara', provisjon_prosent: 50 },
+      { id: 'a', navn: 'Jonas' },
+      { id: 'b', navn: 'Sara' },
     ];
     const jobber = [
       { technician_id: 'a', arbeidspris: 500, estimert_tid_min: 45 },
@@ -71,9 +71,9 @@ describe('earnings', () => {
     const b = res.find((r) => r.technician_id === 'b')!;
     expect(a.antall_jobber).toBe(2);
     expect(a.minutter).toBe(85);
-    expect(a.kroner).toBe(520); // 200 + 320
+    expect(a.kroner).toBe(1300); // 500 + 800
     expect(b.antall_jobber).toBe(1);
-    expect(b.kroner).toBe(500); // 1000 * 50%
+    expect(b.kroner).toBe(1000); // hele arbeidsprisen
   });
 
   it('summerer utbetalt/ubetalt', () => {

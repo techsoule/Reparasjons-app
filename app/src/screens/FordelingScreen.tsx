@@ -42,7 +42,6 @@ export function FordelingScreen() {
         reparatorer.map((t: Technician) => ({
           id: t.id,
           navn: t.navn,
-          provisjon_prosent: t.provisjon_prosent,
         })),
         iPeriode.map((j) => ({
           technician_id: j.technician_id,

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { melding, spor } from '../lib/dialog';
+import { melding, spor, bekreft } from '../lib/dialog';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   Skjerm,
@@ -19,7 +19,7 @@ import { hentJobb, hentRepairTypes, lagOppslag } from '../lib/data';
 import { useAuth } from '../context/AuthContext';
 import { useRealtime } from '../hooks/useRealtime';
 import { kr, datoTid, tid as fmtTid } from '@shared/domain/format';
-import { beregnProvisjon } from '@shared/domain/earnings';
+import { fortjeneste } from '@shared/domain/earnings';
 import {
   STATUS_FLYT,
   STATUS_TEKST,
@@ -30,7 +30,7 @@ import type { JobberStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<JobberStackParamList, 'JobbDetalj'>;
 
-export function JobbDetaljScreen({ route }: Props) {
+export function JobbDetaljScreen({ route, navigation }: Props) {
   const { jobId } = route.params;
   const { tekniker, erAdmin } = useAuth();
   const [jobb, setJobb] = useState<Job | null>(null);
@@ -56,7 +56,7 @@ export function JobbDetaljScreen({ route }: Props) {
   const erMin = jobb.technician_id === tekniker?.id;
   const kanEndre = erMin || erAdmin;
   const feiltyper = jobb.repair_type_ids.map((id) => rtNavn[id]).filter(Boolean).join(', ');
-  const andel = beregnProvisjon(jobb.arbeidspris, tekniker?.provisjon_prosent ?? 0);
+  const andel = fortjeneste(jobb.arbeidspris);
 
   async function settStatus(ny: JobStatus) {
     const { error } = await supabase.from('jobs').update({ status: ny }).eq('id', jobId);
@@ -92,6 +92,26 @@ export function JobbDetaljScreen({ route }: Props) {
   function beOmOmfordeling() {
     spor('Be om omfordeling', 'Kort begrunnelse (valgfritt):', (grunn) =>
       sendOmfordelingsforesporsel(grunn ? grunn : null),
+    );
+  }
+
+  function giTilNeste() {
+    bekreft(
+      'Passer ikke?',
+      'Jobben gis videre til nestemann i køen. Vil du fortsette?',
+      async () => {
+        const { data, error } = await supabase.rpc('gi_til_neste_i_ko', {
+          p_job_id: jobId,
+        });
+        if (error) {
+          melding('Kunne ikke gi videre', error.message);
+          return;
+        }
+        const rad = Array.isArray(data) ? data[0] : data;
+        melding('Gitt videre', `Jobben er nå tildelt ${rad?.tildelt}.`, () =>
+          navigation.goBack(),
+        );
+      },
     );
   }
 
@@ -165,12 +185,20 @@ export function JobbDetaljScreen({ route }: Props) {
           />
           <Knapp tittel="Lagre notat" onPress={lagreNotat} laster={lagrer} />
 
+          {jobb.technician_id && (erMin || erAdmin) && (
+            <Knapp
+              tittel="Passer ikke – gi til neste i køen"
+              variant="fare"
+              onPress={giTilNeste}
+              style={{ marginTop: avstand.m }}
+            />
+          )}
           {erMin && !erAdmin && (
             <Knapp
-              tittel="Be om omfordeling"
-              variant="fare"
+              tittel="Be om omfordeling (til admin)"
+              variant="sekundar"
               onPress={beOmOmfordeling}
-              style={{ marginTop: avstand.m }}
+              style={{ marginTop: avstand.s }}
             />
           )}
         </>
