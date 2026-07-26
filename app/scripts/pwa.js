@@ -49,6 +49,15 @@ fs.writeFileSync(path.join(dist, 'sw.js'), sw);
 const indexPath = path.join(dist, 'index.html');
 let html = fs.readFileSync(indexPath, 'utf8');
 
+// viewport-fit=cover kreves for at iPhone skal rapportere «trygg sone»
+// (env(safe-area-inset-*)), slik at meny/topp ikke havner under hjem-streken.
+if (!html.includes('viewport-fit=cover')) {
+  html = html.replace(
+    /(<meta name="viewport" content="[^"]*)"/,
+    '$1, viewport-fit=cover"',
+  );
+}
+
 const head = `
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="mobile-web-app-capable" content="yes" />

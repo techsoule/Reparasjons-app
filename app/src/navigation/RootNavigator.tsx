@@ -3,6 +3,7 @@ import { Text, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { farger, skrift } from '../theme';
 import { useAuth } from '../context/AuthContext';
@@ -87,6 +88,8 @@ function tabIkon(emoji: string) {
 }
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();
+  const bunn = Math.max(insets.bottom, 8); // klaring for iPhone hjem-strek
   return (
     <Tabs.Navigator
       screenOptions={{
@@ -94,7 +97,13 @@ function MainTabs() {
         tabBarActiveTintColor: farger.primar,
         tabBarInactiveTintColor: farger.tekstSvak,
         tabBarLabelStyle: { fontFamily: skrift.medium, fontSize: 11 },
-        tabBarStyle: { borderTopColor: farger.kant },
+        tabBarStyle: {
+          borderTopColor: farger.kant,
+          height: 56 + bunn,
+          paddingBottom: bunn,
+          paddingTop: 6,
+        },
+        tabBarItemStyle: { paddingVertical: 2 },
       }}
     >
       <Tabs.Screen
