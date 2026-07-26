@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TouchableOpacity } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -11,6 +11,7 @@ import { LasterVisning } from '../components/UI';
 
 import { LoginScreen } from '../screens/LoginScreen';
 import { MineJobberScreen } from '../screens/MineJobberScreen';
+import { NyJobbScreen } from '../screens/NyJobbScreen';
 import { JobbDetaljScreen } from '../screens/JobbDetaljScreen';
 import { AlleJobberScreen } from '../screens/AlleJobberScreen';
 import { FordelingScreen } from '../screens/FordelingScreen';
@@ -41,9 +42,16 @@ function JobberNavigator() {
         options={({ navigation }) => ({
           title: 'Mine jobber',
           headerRight: () => (
-            <TouchableOpacity onPress={() => navigation.navigate('Tilgjengelighet')}>
-              <Text style={{ fontSize: 20 }}>⚙️</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
+              <TouchableOpacity onPress={() => navigation.navigate('NyJobb')}>
+                <Text style={{ fontSize: 15, fontFamily: skrift.semibold, color: farger.primar }}>
+                  + Ny
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('Tilgjengelighet')}>
+                <Text style={{ fontSize: 20 }}>⚙️</Text>
+              </TouchableOpacity>
+            </View>
           ),
         })}
       />
@@ -51,6 +59,11 @@ function JobberNavigator() {
         name="JobbDetalj"
         component={JobbDetaljScreen}
         options={{ title: 'Jobbdetalj' }}
+      />
+      <JobberStack.Screen
+        name="NyJobb"
+        component={NyJobbScreen}
+        options={{ title: 'Ny booking' }}
       />
       <JobberStack.Screen
         name="Tilgjengelighet"
