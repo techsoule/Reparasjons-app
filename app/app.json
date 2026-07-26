@@ -23,8 +23,8 @@
     },
     "plugins": ["expo-notifications", "expo-font"],
     "extra": {
-      "supabaseUrl": "",
-      "supabaseAnonKey": ""
+      "supabaseUrl": "https://jgntxkwwrxvizuopflnn.supabase.co",
+      "supabaseAnonKey": "sb_publishable_Ozi2OcwSj4LO67hskke4ig_3CaZegAt"
     }
   }
 }
