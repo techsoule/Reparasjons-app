@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { melding, spor } from '../lib/dialog';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   Skjerm,
@@ -59,15 +60,15 @@ export function JobbDetaljScreen({ route }: Props) {
 
   async function settStatus(ny: JobStatus) {
     const { error } = await supabase.from('jobs').update({ status: ny }).eq('id', jobId);
-    if (error) Alert.alert('Kunne ikke endre status', error.message);
+    if (error) melding('Kunne ikke endre status', error.message);
   }
 
   async function lagreNotat() {
     setLagrer(true);
     const { error } = await supabase.from('jobs').update({ notat }).eq('id', jobId);
     setLagrer(false);
-    if (error) Alert.alert('Kunne ikke lagre notat', error.message);
-    else Alert.alert('Lagret', 'Notatet er oppdatert.');
+    if (error) melding('Kunne ikke lagre notat', error.message);
+    else melding('Lagret', 'Notatet er oppdatert.');
   }
 
   async function bekreftTidspunkt() {
@@ -76,7 +77,7 @@ export function JobbDetaljScreen({ route }: Props) {
       .from('jobs')
       .update({ bekreftet_tidspunkt: tid, status: 'bekreftet' })
       .eq('id', jobId);
-    if (error) Alert.alert('Kunne ikke bekrefte', error.message);
+    if (error) melding('Kunne ikke bekrefte', error.message);
   }
 
   async function sendOmfordelingsforesporsel(grunn: string | null) {
@@ -84,28 +85,14 @@ export function JobbDetaljScreen({ route }: Props) {
       p_job_id: jobId,
       p_begrunnelse: grunn,
     });
-    if (error) Alert.alert('Feil', error.message);
-    else Alert.alert('Sendt', 'Admin har fått forespørselen.');
+    if (error) melding('Feil', error.message);
+    else melding('Sendt', 'Admin har fått forespørselen.');
   }
 
   function beOmOmfordeling() {
-    // Alert.prompt finnes kun på iOS — fall tilbake til enkel bekreftelse.
-    if (typeof Alert.prompt === 'function') {
-      Alert.prompt(
-        'Be om omfordeling',
-        'Kort begrunnelse (valgfritt):',
-        (grunn) => sendOmfordelingsforesporsel(grunn ? grunn : null),
-      );
-    } else {
-      Alert.alert(
-        'Be om omfordeling',
-        'Send forespørsel til admin om at denne jobben blir omfordelt?',
-        [
-          { text: 'Avbryt', style: 'cancel' },
-          { text: 'Send', onPress: () => sendOmfordelingsforesporsel(null) },
-        ],
-      );
-    }
+    spor('Be om omfordeling', 'Kort begrunnelse (valgfritt):', (grunn) =>
+      sendOmfordelingsforesporsel(grunn ? grunn : null),
+    );
   }
 
   return (

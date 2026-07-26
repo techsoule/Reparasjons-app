@@ -6,9 +6,8 @@ import {
   TouchableOpacity,
   Modal,
   FlatList,
-  Alert,
-  ScrollView,
 } from 'react-native';
+import { melding } from '../lib/dialog';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Skjerm, Tittel, Felt, Knapp } from '../components/UI';
 import { farger, avstand, skrift, tekststr } from '../theme';
@@ -45,9 +44,9 @@ export function NyJobbScreen({ navigation }: Props) {
   }, []);
 
   async function lagre() {
-    if (!kundeNavn.trim()) return Alert.alert('Mangler', 'Fyll inn kundenavn.');
-    if (!modell) return Alert.alert('Mangler', 'Velg modell.');
-    if (valgteFeil.length === 0) return Alert.alert('Mangler', 'Velg minst én feiltype.');
+    if (!kundeNavn.trim()) return melding('Mangler', 'Fyll inn kundenavn.');
+    if (!modell) return melding('Mangler', 'Velg modell.');
+    if (valgteFeil.length === 0) return melding('Mangler', 'Velg minst én feiltype.');
 
     setSender(true);
     const { data, error } = await supabase.rpc('opprett_og_fordel_jobb', {
@@ -62,14 +61,14 @@ export function NyJobbScreen({ navigation }: Props) {
     setSender(false);
 
     if (error) {
-      Alert.alert('Kunne ikke lagre', error.message);
+      melding('Kunne ikke lagre', error.message);
       return;
     }
     const rad = Array.isArray(data) ? data[0] : data;
-    Alert.alert(
+    melding(
       'Booking opprettet',
       `Ordre ${rad?.ordrenummer}\nFordelt til: ${rad?.tildelt ?? 'ingen tilgjengelig – må fordeles manuelt'}`,
-      [{ text: 'OK', onPress: () => navigation.goBack() }],
+      () => navigation.goBack(),
     );
   }
 

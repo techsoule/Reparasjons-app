@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { melding } from '../lib/dialog';
 import {
   Skjerm,
   Tittel,
@@ -49,11 +50,11 @@ export function TilgjengelighetScreen() {
 
   async function lagre() {
     if (!gyldigDato(fra) || !gyldigDato(til)) {
-      Alert.alert('Ugyldig dato', 'Bruk formatet ÅÅÅÅ-MM-DD.');
+      melding('Ugyldig dato', 'Bruk formatet ÅÅÅÅ-MM-DD.');
       return;
     }
     if (til < fra) {
-      Alert.alert('Ugyldig periode', 'Til-dato kan ikke være før fra-dato.');
+      melding('Ugyldig periode', 'Til-dato kan ikke være før fra-dato.');
       return;
     }
     setLagrer(true);
@@ -64,7 +65,7 @@ export function TilgjengelighetScreen() {
       type,
     });
     setLagrer(false);
-    if (error) Alert.alert('Kunne ikke lagre', error.message);
+    if (error) melding('Kunne ikke lagre', error.message);
     else {
       setFra('');
       setTil('');

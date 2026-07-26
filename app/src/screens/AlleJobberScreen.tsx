@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { FlatList, RefreshControl, View, Text, StyleSheet, Alert } from 'react-native';
+import { FlatList, RefreshControl, View, Text, StyleSheet } from 'react-native';
+import { melding, velg } from '../lib/dialog';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   Skjerm,
@@ -73,21 +74,17 @@ export function AlleJobberScreen({ navigation }: Props) {
       ? reparatorer
       : reparatorer.filter((r) => r.id === tekniker?.id);
     const knapper = valg.map((r) => ({
-      text: r.navn,
-      onPress: async () => {
+      tekst: r.navn,
+      onTrykk: async () => {
         const { error } = await supabase.rpc('omfordel_jobb', {
           p_job_id: jobb.id,
           p_ny_technician: r.id,
           p_begrunnelse: null,
         });
-        if (error) Alert.alert('Kunne ikke omfordele', error.message);
+        if (error) melding('Kunne ikke omfordele', error.message);
       },
     }));
-    Alert.alert(
-      'Omfordel jobb',
-      erAdmin ? 'Velg reparatør:' : 'Overfør jobben til deg selv?',
-      [...knapper, { text: 'Avbryt', style: 'cancel' }],
-    );
+    velg(erAdmin ? 'Omfordel – velg reparatør' : 'Overfør jobben til deg selv?', knapper);
   }
 
   return (
